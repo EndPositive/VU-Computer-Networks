@@ -1,8 +1,8 @@
 import socket
 import threading
 import time
+import sys
 
-Username = ""
 Quit = False
 
 
@@ -15,7 +15,6 @@ def receive(size):
 
 
 def connect():
-    global Username
     print("Username:")
     name = input()
     if name:
@@ -28,7 +27,6 @@ def connect():
             print("Server is busy.")
         elif spl[0] == "HELLO":
             print("Connected.")
-            Username = name
             return True
     else:
         return connect()
@@ -38,13 +36,12 @@ def connect():
 
 def run():
     global Quit
-    while True and not Quit:
+    while True:
         print("\nCommand:")
         inp = input()
         if inp:
             spl = inp.split()
             if spl[0] == "!quit":
-                s.close()
                 Quit = True
             elif spl[0] == "!who":
                 s.sendall('WHO\n'.encode('utf-8'))
@@ -58,7 +55,7 @@ def run():
 
 
 def hear():
-    while True and not Quit:
+    while True:
         res = receive(4096)
         spl = res.split()
         if spl[0] == "WHO-OK":
@@ -66,7 +63,7 @@ def hear():
         elif spl[0] == "SEND-OK":
             print("Message successfully sent.")
         elif spl[0] == "UNKNOWN":
-            print("Unknown")
+            print("User is not online.")
         elif spl[0] == "DELIVERY":
             print("Received msg from " + spl[1] + ": ", " ".join(spl[2:]))
         elif spl[0] == "BAD-RQST-HDR":
@@ -82,7 +79,14 @@ if __name__ == '__main__':
     s.connect(('18.195.107.195', 5378))
 
     if connect():
-        threading.Thread(target=hear).start()
-        runT = threading.Thread(target=run).start()
+        hearT = threading.Thread(target=hear)
+        hearT.setDaemon(True)
+        hearT.start()
+        runT = threading.Thread(target=run)
+        runT.setDaemon(True)
+        runT.start()
+
+        while True and not Quit:
+            pass
     else:
         s.close()
