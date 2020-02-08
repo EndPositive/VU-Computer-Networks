@@ -2,21 +2,8 @@ import socket
 import threading
 import time
 
-username = ""
-
-
-def hello(name):
-    global username
-    username = name
-    s.sendall(('HELLO-FROM ' + name + '\n').encode('utf-8'))
-
-
-def who():
-    s.sendall('WHO\n'.encode('utf-8'))
-
-
-def send(user, msg):
-    s.sendall(("SEND " + user + " " + msg + "\n").encode('utf-8'))
+Username = ""
+Quit = False
 
 
 def receive(size):
@@ -28,33 +15,50 @@ def receive(size):
 
 
 def connect():
+    global Username
     print("Username:")
-    hello(input())
-    time.sleep(.1)
+    name = input()
+    if name:
+        s.sendall(('HELLO-FROM ' + name + '\n').encode('utf-8'))
+        res = receive(4096)
+        spl = res.split()
+        if spl[0] == "IN-USE":
+            print("Username already in use.")
+        elif spl[0] == "BUSY":
+            print("Server is busy.")
+        elif spl[0] == "HELLO":
+            print("Connected.")
+            Username = name
+            return True
+    else:
+        return connect()
+    print("Bad name.")
+    return False
 
 
 def run():
-    while True:
+    global Quit
+    while True and not Quit:
         print("\nCommand:")
         inp = input()
-        spl = inp.split()
-        if spl[0] == "!quit":
-            s.close()
-            exit(1)
-            return
-        elif spl[0] == "!who":
-            who()
-        elif inp[0] == "@":
-            user = spl[0][1:]
-            msg = " ".join(spl[1:])
-            send(user, msg)
-        else:
-            print("Unknown command")
-        time.sleep(.1)
+        if inp:
+            spl = inp.split()
+            if spl[0] == "!quit":
+                s.close()
+                Quit = True
+            elif spl[0] == "!who":
+                s.sendall('WHO\n'.encode('utf-8'))
+            elif inp[0] == "@":
+                user = spl[0][1:]
+                msg = " ".join(spl[1:])
+                s.sendall(("SEND " + user + " " + msg + "\n").encode('utf-8'))
+            else:
+                print("Unknown command")
+            time.sleep(.1)
 
 
 def hear():
-    while True:
+    while True and not Quit:
         res = receive(4096)
         spl = res.split()
         if spl[0] == "WHO-OK":
@@ -64,26 +68,21 @@ def hear():
         elif spl[0] == "UNKNOWN":
             print("Unknown")
         elif spl[0] == "DELIVERY":
-            print("Received msg: ", " ".join(spl[1:]))
+            print("Received msg from " + spl[1] + ": ", " ".join(spl[2:]))
         elif spl[0] == "BAD-RQST-HDR":
             print("Unknown command.")
         elif spl[0] == "BAD-RQST-BODY":
             print("Bad parameters")
-        elif spl[0] == "IN-USE":
-            print("Username already in use.")
-            return connect()
-        elif spl[0] == "BUSY":
-            print("Server is busy.")
-        elif spl[0] == "HELLO":
-            print("Connected.")
+        else:
+            print("Unknown error")
 
 
 if __name__ == '__main__':
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect(('18.195.107.195', 5378))
 
-    threading.Thread(target=hear).start()
-
-    connect()
-
-    threading.Thread(target=run).start()
+    if connect():
+        threading.Thread(target=hear).start()
+        runT = threading.Thread(target=run).start()
+    else:
+        s.close()
