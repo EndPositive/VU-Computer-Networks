@@ -1,7 +1,6 @@
 import socket
 import threading
 import time
-import sys
 
 Quit = False
 
@@ -82,6 +81,7 @@ if __name__ == '__main__':
         hearT = threading.Thread(target=hear)
         hearT.setDaemon(True)
         hearT.start()
+
         runT = threading.Thread(target=run)
         runT.setDaemon(True)
         runT.start()
