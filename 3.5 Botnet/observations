@@ -1,0 +1,57 @@
+server ip: 18.195.107.195
+client source & dest port: 45888
+server source & dest port: 5376
+protocol used: TCP
+
+01. C: SYN
+02. S: SYN-ACK
+03. C: ACK
+04. C: REPORT botid=210d12e9413a4e1c os=linux <END>\n
+05. S: ACK
+06. S: HELLO 4ca49cfec8 <END>\n
+07. C: ACK
+08. C: UPDATE version=1.33.7 <END>\n
+09. S: UPDATE none <END>\n
+10. C: ACK
+11. C: COMMAND <END>\n
+12. S: COMMAND spam http://www.badware.com/spam.template <END>\n
+13: C: ACK
+14: C: DONE <END>\n
+15: S: BYE <END>\n
+16: C: ACK
+17: S: FIN-ACK
+18: C: ACK
+19: C: FIN-ACK
+20: S: ACK
+
+MESSAGES
+04. C: REPORT botid=210d12e9413a4e1c os=linux <END>\n
+06. S: HELLO 4ca49cfec8 <END>\n
+08. C: UPDATE version=1.33.7 <END>\n
+09. S: UPDATE none <END>\n
+11. C: COMMAND <END>\n
+12. S: COMMAND spam http://www.badware.com/spam.template <END>\n
+14: C: DONE <END>\n
+15: S: BYE <END>\n
+
+OTHER COMMANDS
+-get_credentials: will send "CREDENTIALS skype=(johndoe,P4ssw0rd) gmail=(johndoe@gmail.com,plzD0ntH4xxorMe) checksum=%s", checksum sent in the HELLO response
+It is encrypted with XOR encryption as follows:
+enc:
+key=KDF(bot_id)
+uvar2 = key[160]
+uvar3 = key[161]
+# both the above values should be 0 after KDF
+for (i in (0, len)):
+	uvar2++
+	uvar3 += key[uvar2]
+	swap(key[uvar2], key[uvar3]);
+	cyphertext[i] = key[key[uvar2]+key[uvar3]] ^ plaintext[i]
+key[160] = uvar2
+key[161] = uvar3
+
+-hidden: will send a base64 encoded BMP image of a smiley face.
+
+
+
+
