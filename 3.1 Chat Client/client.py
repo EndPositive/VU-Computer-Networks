@@ -2,6 +2,25 @@ import socket
 import threading
 
 
+def send(conn, msg):
+    try:
+        conn.sendall(msg.encode('utf-8'))
+        return True
+    except socket.error:
+        return False
+
+
+def receive(conn, size):
+    try:
+        data = conn.recv(size)
+        if not data:
+            return False
+        else:
+            return data.decode("utf-8")
+    except socket.error:
+        return False
+
+
 class ChatClient:
     def __init__(self):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -25,29 +44,12 @@ class ChatClient:
         else:
             self.close()
 
-    def __send(self, msg):
-        try:
-            self.__socket.sendall(msg.encode('utf-8'))
-            return True
-        except socket.error:
-            return False
-
-    def __receive(self, size):
-        try:
-            data = self.__socket.recv(size)
-            if not data:
-                return False
-            else:
-                return data.decode("utf-8")
-        except socket.error:
-            return False
-
     def __connect(self):
         print("Username:")
         name = input()
         if name:
-            if self.__send('HELLO-FROM ' + name + '\n'):
-                res = self.__receive(4096)
+            if send(self.__socket, 'HELLO-FROM ' + name + '\n'):
+                res = receive(self.__socket, 4096)
                 if res:
                     spl = res.split()
                     if spl[0] == "IN-USE":
@@ -77,7 +79,7 @@ class ChatClient:
                         self.Quit = True
                     elif spl[0] == "!who":
                         self.__Wait = 1
-                        if not self.__send('WHO\n'):
+                        if not send(self.__socket, 'WHO\n'):
                             print("Something went wrong.\nDisconnecting from host...")
                             self.Quit = True
                     elif inp[0] == "@":
@@ -87,7 +89,7 @@ class ChatClient:
                             self.__Wait = 2
                         else:
                             self.__Wait = 1
-                        if not self.__send("SEND " + user + " " + msg + "\n"):
+                        if not send(self.__socket, "SEND " + user + " " + msg + "\n"):
                             print("Something went wrong.\nDisconnecting from host...")
                             self.Quit = True
                     else:
@@ -96,7 +98,7 @@ class ChatClient:
 
     def __pull(self):
         while True and not self.Quit:
-            res = self.__receive(4096)
+            res = receive(self.__socket, 4096)
             if res:
                 spl = res.split()
                 print('\x1b[1A' + '\x1b[2K' + '\x1b[1A')
