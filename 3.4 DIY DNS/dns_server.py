@@ -88,25 +88,7 @@ class DNSframe:
             # number of octets.  The domain name terminates with the
             # zero length octet for the null label of the root.  Note
             # that this field may be an odd number of octets; no padding is used.
-            cnt = int.from_bytes(data[index], 'big')
-            while cnt != 0:
-                # copy_index will point to the start of the next label
-                copy_index = index + cnt + 1
-
-                # check for message compression
-                if cnt & 0b11000000 == 0b11000000:
-                    # move the index to the pointer offset
-                    index = cnt & 0b00111111
-                    # parse the number of bytes there
-                    cnt = int.from_bytes(data[index], 'big')
-
-                # parse cnt bytes
-                self.queries[i]['qname'].append(data[index: index + cnt])
-                index = copy_index
-                cnt = int.from_bytes(data[index], 'big')
-
-            # move index over the 0 byte
-            index += 1
+            index, self.queries[i]['qname'] = DNSframe.parse_name(data, index)
 
             # QTYPE - a two octet code which specifies the type of the query.
             # The values for this field include all codes valid for a
@@ -134,25 +116,8 @@ class DNSframe:
 
             if len(data) < index:
                 return
-            # QNAME - a domain name to which this resource record pertains.
-            while cnt != 0:
-                # copy_index will point to the start of the next label
-                copy_index = index + cnt + 1
-
-                # check for message compression
-                if cnt & 0b11000000 == 0b11000000:
-                    # move the index to the pointer offset
-                    index = cnt & 0b00111111
-                    # parse the number of bytes there
-                    cnt = int.from_bytes(data[index], 'big')
-
-                # parse cnt bytes
-                self.answers[i]['name'].append(data[index: index + cnt])
-                index = copy_index
-                cnt = int.from_bytes(data[index], 'big')
-
-            # move index over the 0 byte
-            index += 1
+            # NAME - a domain name to which this resource record pertains.
+            index, self.answers[i]['name'] = DNSframe.parse_name(data, index)
 
             # TYPE - two octets containing one of the RR type codes.  This
             # field specifies the meaning of the data in the RDATA field.
@@ -191,9 +156,31 @@ class DNSframe:
             if len(data) < index + self.answers[i]['rdlength']:
                 return
             self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
+            index += self.answers[i]['rdlength']
 
+    @staticmethod
+    def parse_name(data, index):
+        ans = []
+        cnt = data[index]
+        next_index = index
+        while cnt != 0:
+            index += 1
+            # check for message compression
+            if cnt & 0b11000000 == 0b11000000:
+                next_index = (cnt & 0b00111111) * 255 + data[index]
+                _, partial = DNSframe.parse_name(data, next_index)
+                ans.extend(partial)
+                return index + 1, ans
+            else:
+                # next_index will point to the start of the next label
+                next_index = index + cnt
 
+                # parse cnt bytes
+                ans.append(data[index: index + cnt])
+                index = next_index
+                cnt = data[index]
 
+        return next_index + 1, ans
 
 
 class DNSserver:
