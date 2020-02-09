@@ -92,9 +92,10 @@ class ChatClient:
                             self.Quit = True
                     else:
                         print("Unknown command")
+        self.close()
 
     def __pull(self):
-        while True:
+        while True and not self.Quit:
             res = self.__receive(4096)
             if res:
                 spl = res.split()
@@ -118,6 +119,7 @@ class ChatClient:
             else:
                 print("Something went wrong, disconnected from host.")
                 self.Quit = True
+        self.close()
 
     def close(self, code=0):
         self.__socket.close()
