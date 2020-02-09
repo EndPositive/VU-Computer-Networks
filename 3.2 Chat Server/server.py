@@ -26,6 +26,7 @@ def receive(conn, size):
 
 def hear(client):
     while True:
+        disconnect = False
         res = receive(client[0], 4096)
         if res:
             print("IN:  ", res[:-1])
@@ -33,66 +34,48 @@ def hear(client):
             if spl[0] == "HELLO-FROM":
                 if len(spl) < 2:
                     if not send(client[0], "BAD-RQST-BODY\n"):
-                        clients.remove(client)
-                        client[0].close()
-                        break
+                        disconnect = True
                 elif len(clients) >= 64:
                     send(client[0], 'BUSY\n')
                     print('BUSY')
-                    clients.remove(client)
-                    client[0].close()
-                    break
+                    disconnect = True
                 elif not any(x for x in clients if x[2] == spl[1]):
                     i = clients.index(client)
                     client[2] = spl[1]
                     clients[i] = client
                     if not send(client[0], 'HELLO ' + spl[1] + '\n'):
-                        clients.remove(client)
-                        client[0].close()
-                        break
+                        disconnect = True
                 else:
                     send(client[0], 'IN-USE\n')
                     print('IN-USE')
-                    clients.remove(client)
-                    client[0].close()
-                    break
+                    disconnect = True
             elif spl[0] == "WHO":
                 who = []
                 for x in clients:
                     who.append(x[2])
                 if not send(client[0], "WHO-OK " + ",".join(who) + "\n"):
-                    clients.remove(client)
-                    client[0].close()
-                    break
+                    disconnect = True
             elif spl[0] == "SEND":
                 if len(spl) < 3:
                     if not send(client[0], "BAD-RQST-BODY\n"):
-                        clients.remove(client)
-                        client[0].close()
-                        break
+                        disconnect = True
                 elif any(x for x in clients if x[2] == spl[1]):
                     conn = [x for x in clients if x[2] == spl[1]][0][0]
                     if send(conn, "DELIVERY " + client[2] + " " + " ".join(spl[2:]) + "\n"):
                         if not send(client[0], "SEND-OK\n"):
-                            clients.remove(client)
-                            client[0].close()
-                            break
+                            disconnect = True
                     else:
-                        clients.remove(client)
-                        client[0].close()
-                        break
+                        disconnect = True
                 else:
                     if not send(client[0], "UNKNOWN\n"):
-                        clients.remove(client)
-                        client[0].close()
-                        break
+                        disconnect = True
             else:
                 if not send(client[0], "BAD-RQST-HDR\n"):
-                    clients.remove(client)
-                    client[0].close()
-                    break
+                    disconnect = True
         else:
             print("Disconnecting ", client[2], "...\n")
+            disconnect = True
+        if disconnect:
             clients.remove(client)
             client[0].close()
             break
