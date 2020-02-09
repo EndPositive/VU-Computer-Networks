@@ -1,8 +1,8 @@
 import socket
 import threading
-import time
 
 Quit = False
+Received = False
 
 
 def send(msg):
@@ -49,7 +49,7 @@ def connect():
 
 
 def run():
-    global Quit
+    global Quit, Received
     while True:
         print("\nCommand:")
         inp = input()
@@ -68,12 +68,16 @@ def run():
                     print("Something went wrong.\nDisconnecting from host...")
                     Quit = True
             else:
+                Received = True
                 print("Unknown command")
-            time.sleep(.2)
+
+            while True and not Received:
+                pass
+            Received = False
 
 
 def hear():
-    global Quit
+    global Quit, Received
     while True:
         res = receive(4096)
         if res:
@@ -85,6 +89,7 @@ def hear():
             elif spl[0] == "UNKNOWN":
                 print("User is not online.")
             elif spl[0] == "DELIVERY":
+                print('\x1b[1A' + '\x1b[2K' + '\x1b[1A')
                 print("Received msg from " + spl[1] + ": ", " ".join(spl[2:]))
             elif spl[0] == "BAD-RQST-HDR":
                 print("Unknown command.")
@@ -92,6 +97,9 @@ def hear():
                 print("Bad parameters")
             else:
                 print("Unknown error")
+
+            if not spl[0] == "DELIVERY":
+                Received = True
         else:
             print("Something went wrong, disconnected from host.")
             Quit = True
