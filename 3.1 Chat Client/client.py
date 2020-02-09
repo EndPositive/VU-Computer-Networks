@@ -5,31 +5,46 @@ import time
 Quit = False
 
 
+def send(msg):
+    try:
+        s.sendall(msg.encode('utf-8'))
+        return True
+    except socket.error:
+        return False
+
+
 def receive(size):
-    data = s.recv(size)
-    if not data:
-        return "Socket is closed."
-    else:
-        return data.decode("utf-8")
+    try:
+        data = s.recv(size)
+        if not data:
+            return False
+        else:
+            return data.decode("utf-8")
+    except socket.error:
+        return False
 
 
 def connect():
     print("Username:")
     name = input()
     if name:
-        s.sendall(('HELLO-FROM ' + name + '\n').encode('utf-8'))
-        res = receive(4096)
-        spl = res.split()
-        if spl[0] == "IN-USE":
-            print("Username already in use.")
-        elif spl[0] == "BUSY":
-            print("Server is busy.")
-        elif spl[0] == "HELLO":
-            print("Connected.")
-            return True
+        if send('HELLO-FROM ' + name + '\n'):
+            res = receive(4096)
+            if res:
+                spl = res.split()
+                if spl[0] == "IN-USE":
+                    print("Username already in use.")
+                    return connect()
+                elif spl[0] == "BUSY":
+                    print("Server is busy.")
+                elif spl[0] == "HELLO":
+                    print("Connected.")
+                    return True
+            else:
+                print("Something went wrong.")
     else:
         return connect()
-    print("Bad name.")
+    print("Disconnecting from host...")
     return False
 
 
@@ -43,34 +58,43 @@ def run():
             if spl[0] == "!quit":
                 Quit = True
             elif spl[0] == "!who":
-                s.sendall('WHO\n'.encode('utf-8'))
+                if not send('WHO\n'):
+                    print("Something went wrong.\nDisconnecting from host...")
+                    Quit = True
             elif inp[0] == "@":
                 user = spl[0][1:]
                 msg = " ".join(spl[1:])
-                s.sendall(("SEND " + user + " " + msg + "\n").encode('utf-8'))
+                if not send("SEND " + user + " " + msg + "\n"):
+                    print("Something went wrong.\nDisconnecting from host...")
+                    Quit = True
             else:
                 print("Unknown command")
             time.sleep(.1)
 
 
 def hear():
+    global Quit
     while True:
         res = receive(4096)
-        spl = res.split()
-        if spl[0] == "WHO-OK":
-            print("Online users: ", ",".join(spl[1:]))
-        elif spl[0] == "SEND-OK":
-            print("Message successfully sent.")
-        elif spl[0] == "UNKNOWN":
-            print("User is not online.")
-        elif spl[0] == "DELIVERY":
-            print("Received msg from " + spl[1] + ": ", " ".join(spl[2:]))
-        elif spl[0] == "BAD-RQST-HDR":
-            print("Unknown command.")
-        elif spl[0] == "BAD-RQST-BODY":
-            print("Bad parameters")
+        if res:
+            spl = res.split()
+            if spl[0] == "WHO-OK":
+                print("Online users: ", ",".join(spl[1:]))
+            elif spl[0] == "SEND-OK":
+                print("Message successfully sent.")
+            elif spl[0] == "UNKNOWN":
+                print("User is not online.")
+            elif spl[0] == "DELIVERY":
+                print("Received msg from " + spl[1] + ": ", " ".join(spl[2:]))
+            elif spl[0] == "BAD-RQST-HDR":
+                print("Unknown command.")
+            elif spl[0] == "BAD-RQST-BODY":
+                print("Bad parameters")
+            else:
+                print("Unknown error")
         else:
-            print("Unknown error")
+            print("Something went wrong, disconnected from host.")
+            Quit = True
 
 
 if __name__ == '__main__':
@@ -88,5 +112,4 @@ if __name__ == '__main__':
 
         while True and not Quit:
             pass
-    else:
-        s.close()
+    s.close()
