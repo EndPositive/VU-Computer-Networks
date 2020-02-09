@@ -7,6 +7,9 @@ class DNSframe:
         if len(data) < 12:
             return
 
+        self.queries = []
+        self.answers = []
+
         # TRANSACTION ID: 2 BYTES
         self.id = data[:2]
 
@@ -75,7 +78,6 @@ class DNSframe:
         self.arcount = int.from_bytes(data[10:12], 'big')
 
         # PARSE QUERIES
-        self.queries = []
         index = 12
         for i in range(self.qdcount):
             self.queries.append({})
@@ -108,8 +110,7 @@ class DNSframe:
             self.queries[i]['qclass'] = int.from_bytes(data[index: index + 2], 'big')
             index += 2
 
-        # PARSE resource record AKA answer
-        self.answers = []
+        # parse resource record AKA answer
         for i in range(self.ancount):
             self.answers.append({})
             self.answers[i]['name'] = []
@@ -182,6 +183,43 @@ class DNSframe:
 
         return next_index + 1, ans
 
+    def to_bytes(self, include_len=True):
+        frame = b''
+
+        # HEADER
+        frame += self.id
+        frame += ((self.qr << 7) | (self.opcode << 3) | (self.aa << 2) | (self.tc << 1) | self.rd).to_bytes(1, 'big')
+        frame += ((self.ra << 7) | self.rcode).to_bytes(1, 'big')
+        frame += self.qdcount.to_bytes(2, 'big')
+        frame += self.ancount.to_bytes(2, 'big')
+        frame += self.nscount.to_bytes(2, 'big')
+        frame += self.arcount.to_bytes(2, 'big')
+
+        # QUERY
+        for query in self.queries:
+            for label in query['qname']:
+                frame += len(label).to_bytes(1, 'big')
+                frame += label
+            frame += b'\x00'
+            frame += query['qtype'].to_bytes(2, 'big')
+            frame += query['qclass'].to_bytes(2, 'big')
+
+        # RESOURCE RECORDS
+        for answer in self.answers:
+            for label in answer['name']:
+                frame += len(label).to_bytes(1, 'big')
+                frame += label
+            frame += b'\x00'
+            frame += answer['type'].to_bytes(2, 'big')
+            frame += answer['class'].to_bytes(2, 'big')
+            frame += answer['ttl'].to_bytes(4, 'big')
+            frame += answer['rdlength'].to_bytes(2, 'big')
+            frame += answer['rdata']
+
+        if include_len:
+            return len(frame).to_bytes(2, 'big') + frame
+        else:
+            return frame
 
 class DNSserver:
     def __init__(self, verbose=True):
@@ -220,7 +258,11 @@ class DNSserver:
         if self.verbose:
             print('[+]Received', frame_size, 'bytes from', addr, flush=True)
 
-        packet = DNSframe(data)
+        try:
+            packet = DNSframe(data)
+        except:
+            # send wrong format packet
+            pass
 
     def close(self, code=0):
         if self.verbose:
