@@ -1,12 +1,9 @@
 import socket
 import threading
 
-clients = []
-
 
 def send(conn, msg):
     try:
-        print("OUT: ", msg)
         conn.sendall(msg.encode('utf-8'))
         return True
     except socket.error:
@@ -24,92 +21,94 @@ def receive(conn, size):
         return False
 
 
-def hear(client):
-    while True:
+class ChatServer:
+    def __init__(self):
+        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.connections = []
+
+    def start(self):
+        self.__socket.bind(('localhost', 65432))
+        self.__socket.listen()
+
+        self.connections.append(["", "", "echobot"])
+
+        while True:
+            conn, addr = self.__socket.accept()
+            self.connections.append([conn, addr, ""])
+            pullThread = threading.Thread(target=self.__pull, args=([conn, addr, ""]))
+            pullThread.setDaemon(True)
+            pullThread.start()
+
+    def online(self, user):
+        conn = [x for x in self.connections if x[2] == user]
+        if len(conn):
+            return conn[0]
+        return False
+
+    def getNames(self):
+        names = []
+        for x in self.connections:
+            names.append(x[2])
+        return names
+
+    def __pull(self, conn, addr, name):
         disconnect = False
-        res = receive(client[0], 4096)
-        if res:
-            print("IN:  ", res[:-1])
-            spl = res.split()
-            if spl[0] == "HELLO-FROM":
-                if len(spl) < 2:
-                    if not send(client[0], "BAD-RQST-BODY\n"):
+        while True and not disconnect:
+            res = receive(conn, 4096)
+            if res:
+                print("IN:  ", res[:-1])
+                spl = res.split()
+                if spl[0] == "HELLO-FROM":
+                    if len(spl) < 2:
+                        msg = "BAD-RQST-BODY\n"
+                    elif len(self.connections) >= 64:
+                        msg = "BUSY\n"
                         disconnect = True
-                elif len(clients) >= 64:
-                    send(client[0], 'BUSY\n')
-                    print('BUSY')
-                    disconnect = True
-                elif not any(x for x in clients if x[2] == spl[1]):
-                    i = clients.index(client)
-                    client[2] = spl[1]
-                    clients[i] = client
-                    if not send(client[0], 'HELLO ' + spl[1] + '\n'):
-                        disconnect = True
-                else:
-                    send(client[0], 'IN-USE\n')
-                    print('IN-USE')
-                    disconnect = True
-            elif spl[0] == "WHO":
-                who = []
-                for x in clients:
-                    who.append(x[2])
-                if not send(client[0], "WHO-OK " + ",".join(who) + "\n"):
-                    disconnect = True
-            elif spl[0] == "SEND":
-                if len(spl) < 3:
-                    if not send(client[0], "BAD-RQST-BODY\n"):
-                        disconnect = True
-                elif any(x for x in clients if x[2] == spl[1]):
-                    if spl[1] == "echobot":
-                        conn = client[0]
-                        if send(client[0], "SEND-OK\n"):
-                            if not send(conn, "DELIVERY echobot " + " ".join(spl[2:]) + "\n"):
-                                disconnect = True
-                        else:
-                            disconnect = True
+                    elif not any(x for x in self.connections if x[2] == spl[1]):
+                        i = self.connections.index([conn, addr, name])
+                        name = spl[1]
+                        self.connections[i] = [conn, addr, name]
+                        msg = "HELLO " + spl[1] + "\n"
                     else:
-                        conn = [x for x in clients if x[2] == spl[1]][0][0]
-                        if send(conn, "DELIVERY " + client[2] + " " + " ".join(spl[2:]) + "\n"):
-                            if not send(client[0], "SEND-OK\n"):
+                        msg = "IN-USE"
+                        disconnect = True
+                elif spl[0] == "WHO":
+
+                    msg = "WHO-OK " + ",".join(self.getNames()) + "\n"
+                elif spl[0] == "SEND":
+                    if len(spl) < 3:
+                        msg = "BAD-RQST-BODY\n"
+                    elif self.online(spl[1]):
+                        if spl[1] == "echobot":
+                            if send(conn, "SEND-OK\n"):
+                                msg = "DELIVERY echobot " + " ".join(spl[2:]) + "\n"
+                            else:
                                 disconnect = True
                         else:
-                            disconnect = True
+                            to = self.online(spl[1])[0]
+                            if send(to, "DELIVERY " + name + " " + " ".join(spl[2:]) + "\n"):
+                                msg = "SEND-OK\n"
+                            else:
+                                disconnect = True
+                    else:
+                        msg = "UNKNOWN\n"
                 else:
-                    if not send(client[0], "UNKNOWN\n"):
-                        disconnect = True
-            else:
-                if not send(client[0], "BAD-RQST-HDR\n"):
+                    msg = "BAD-RQST-HDR\n"
+                print("OUT: ", msg)
+                if not send(conn, msg):
                     disconnect = True
-        else:
-            print("Disconnecting ", client[2], "...\n")
-            disconnect = True
-        if disconnect:
-            clients.remove(client)
-            client[0].close()
-            break
-
-
-def connect():
-    while True:
-        conn, addr = s.accept()
-        clients.append([conn, addr, ""])
-
-        print("IN:  ", addr)
-        hearT = threading.Thread(target=hear, args=([[conn, addr, ""]]))
-        hearT.setDaemon(True)
-        hearT.start()
+            else:
+                print("Disconnecting ", name, "...\n")
+                disconnect = True
+        self.connections.remove([conn, addr, name])
+        conn.close()
 
 
 if __name__ == '__main__':
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 65432))
-    s.listen()
 
-    clients.append(["", "", "echobot"])
-
-    connectT = threading.Thread(target=connect)
-    connectT.setDaemon(True)
-    connectT.start()
+    chatServer = ChatServer()
+    chatServer.start()
 
     while True:
         pass
