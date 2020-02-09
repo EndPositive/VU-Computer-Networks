@@ -94,7 +94,7 @@ def connect():
 
 if __name__ == '__main__':
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('192.168.2.13', 65432))
+    s.bind(('localhost', 65432))
     s.listen()
 
     connectT = threading.Thread(target=connect)
