@@ -60,12 +60,20 @@ def hear(client):
                     if not send(client[0], "BAD-RQST-BODY\n"):
                         disconnect = True
                 elif any(x for x in clients if x[2] == spl[1]):
-                    conn = [x for x in clients if x[2] == spl[1]][0][0]
-                    if send(conn, "DELIVERY " + client[2] + " " + " ".join(spl[2:]) + "\n"):
-                        if not send(client[0], "SEND-OK\n"):
+                    if spl[1] == "echobot":
+                        conn = client[0]
+                        if send(client[0], "SEND-OK\n"):
+                            if not send(conn, "DELIVERY echobot " + " ".join(spl[2:]) + "\n"):
+                                disconnect = True
+                        else:
                             disconnect = True
                     else:
-                        disconnect = True
+                        conn = [x for x in clients if x[2] == spl[1]][0][0]
+                        if send(conn, "DELIVERY " + client[2] + " " + " ".join(spl[2:]) + "\n"):
+                            if not send(client[0], "SEND-OK\n"):
+                                disconnect = True
+                        else:
+                            disconnect = True
                 else:
                     if not send(client[0], "UNKNOWN\n"):
                         disconnect = True
@@ -96,6 +104,8 @@ if __name__ == '__main__':
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('localhost', 65432))
     s.listen()
+
+    clients.append(["", "", "echobot"])
 
     connectT = threading.Thread(target=connect)
     connectT.setDaemon(True)
