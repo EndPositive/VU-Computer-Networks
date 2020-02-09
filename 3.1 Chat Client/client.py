@@ -69,7 +69,7 @@ def run():
                     Quit = True
             else:
                 print("Unknown command")
-            time.sleep(.1)
+            time.sleep(.2)
 
 
 def hear():
