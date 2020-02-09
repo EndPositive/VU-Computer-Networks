@@ -108,23 +108,89 @@ class DNSframe:
             # move index over the 0 byte
             index += 1
 
-            if len(data) < index + 4:
-                return
             # QTYPE - a two octet code which specifies the type of the query.
             # The values for this field include all codes valid for a
             # TYPE field, together with some more general codes which
             # can match more than one type of RR.
+            if len(data) < index + 2:
+                return
             self.queries[i]['qtype'] = int.from_bytes(data[index:index + 2], 'big')
             index += 2
 
-            if len(data) < index + 4:
-                return
             # QCLASS - a two octet code which specifies the type of the query.
             # The values for this field include all codes valid for a
             # TYPE field, together with some more general codes which
             # can match more than one type of RR.
+            if len(data) < index + 2:
+                return
             self.queries[i]['qclass'] = int.from_bytes(data[index: index + 2], 'big')
             index += 2
+
+        # PARSE resource record AKA answer
+        self.answers = []
+        for i in range(self.ancount):
+            self.answers.append({})
+            self.answers[i]['name'] = []
+
+            if len(data) < index:
+                return
+            # QNAME - a domain name to which this resource record pertains.
+            while cnt != 0:
+                # copy_index will point to the start of the next label
+                copy_index = index + cnt + 1
+
+                # check for message compression
+                if cnt & 0b11000000 == 0b11000000:
+                    # move the index to the pointer offset
+                    index = cnt & 0b00111111
+                    # parse the number of bytes there
+                    cnt = int.from_bytes(data[index], 'big')
+
+                # parse cnt bytes
+                self.answers[i]['name'].append(data[index: index + cnt])
+                index = copy_index
+                cnt = int.from_bytes(data[index], 'big')
+
+            # move index over the 0 byte
+            index += 1
+
+            # TYPE - two octets containing one of the RR type codes.  This
+            # field specifies the meaning of the data in the RDATA field.
+            if len(data) < index + 2:
+                return
+            self.answers[i]['type'] = int.from_bytes(data[index:index + 2], 'big')
+            index += 2
+
+            # CLASS - two octets which specify the class of the data in the RDATA field.
+            self.answers[i]['class'] = int.from_bytes(data[index: index + 2], 'big')
+            if len(data) < index + 2:
+                return
+            index += 2
+
+            # TTL - a 32 bit unsigned integer that specifies the time
+            # interval (in seconds) that the resource record may be
+            # cached before it should be discarded.  Zero values are
+            # interpreted to mean that the RR can only be used for the
+            # transaction in progress, and should not be cached.
+            if len(data) < index + 4:
+                return
+            self.answers[i]['ttl'] = int.from_bytes(data[index: index + 4], 'big')
+            index += 4
+
+            # RDLENGTH - an unsigned 16 bit integer that specifies the length in octets of the RDATA field.
+            if len(data) < index + 2:
+                return
+            self.answers[i]['rdlength'] = int.from_bytes(data[index: index + 2], 'big')
+            index += 2
+
+            # RDATA - a variable length string of octets that describes the
+            # resource.  The format of this information varies
+            # according to the TYPE and CLASS of the resource record.
+            # For example, the if the TYPE is A and the CLASS is IN,
+            # the RDATA field is a 4 octet ARPA Internet address.
+            if len(data) < index + self.answers[i]['rdlength']:
+                return
+            self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
 
 
 

@@ -99,7 +99,7 @@ def hear():
 
 if __name__ == '__main__':
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect(('18.195.107.195', 5378))
+    s.connect(('77.165.14.53', 65432))
 
     if connect():
         hearT = threading.Thread(target=hear)
