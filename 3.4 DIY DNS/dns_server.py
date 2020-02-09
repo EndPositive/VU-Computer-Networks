@@ -102,7 +102,7 @@ class DNSframe:
             # The values for this field include all codes valid for a
             # TYPE field, together with some more general codes which
             # can match more than one type of RR.
-            if len(data) <= index + 2:
+            if len(data) < index + 2:
                 raise MalformedFrameError()
             self.queries[i]['qtype'] = int.from_bytes(data[index:index + 2], 'big')
             index += 2
@@ -111,7 +111,7 @@ class DNSframe:
             # The values for this field include all codes valid for a
             # TYPE field, together with some more general codes which
             # can match more than one type of RR.
-            if len(data) <= index + 2:
+            if len(data) < index + 2:
                 raise MalformedFrameError()
             self.queries[i]['qclass'] = int.from_bytes(data[index: index + 2], 'big')
             index += 2
@@ -124,20 +124,20 @@ class DNSframe:
             self.answers[i]['name'] = []
 
             # NAME - a domain name to which this resource record pertains.
-            if len(data) <= index:
+            if len(data) < index:
                 raise MalformedFrameError()
             index, self.answers[i]['name'] = DNSframe.parse_name(data, index)
 
             # TYPE - two octets containing one of the RR type codes.  This
             # field specifies the meaning of the data in the RDATA field.
-            if len(data) <= index + 2:
+            if len(data) < index + 2:
                 raise MalformedFrameError()
             self.answers[i]['type'] = int.from_bytes(data[index:index + 2], 'big')
             index += 2
 
             # CLASS - two octets which specify the class of the data in the RDATA field.
             self.answers[i]['class'] = int.from_bytes(data[index: index + 2], 'big')
-            if len(data) <= index + 2:
+            if len(data) < index + 2:
                 raise MalformedFrameError()
             index += 2
 
@@ -146,13 +146,13 @@ class DNSframe:
             # cached before it should be discarded.  Zero values are
             # interpreted to mean that the RR can only be used for the
             # transaction in progress, and should not be cached.
-            if len(data) <= index + 4:
+            if len(data) < index + 4:
                 raise MalformedFrameError()
             self.answers[i]['ttl'] = int.from_bytes(data[index: index + 4], 'big')
             index += 4
 
             # RDLENGTH - an unsigned 16 bit integer that specifies the length in octets of the RDATA field.
-            if len(data) <= index + 2:
+            if len(data) < index + 2:
                 raise MalformedFrameError()
             self.answers[i]['rdlength'] = int.from_bytes(data[index: index + 2], 'big')
             index += 2
@@ -162,7 +162,7 @@ class DNSframe:
             # according to the TYPE and CLASS of the resource record.
             # For example, the if the TYPE is A and the CLASS is IN,
             # the RDATA field is a 4 octet ARPA Internet address.
-            if len(data) <= index + self.answers[i]['rdlength']:
+            if len(data) < index + self.answers[i]['rdlength']:
                 raise MalformedFrameError()
             self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
             index += self.answers[i]['rdlength']
