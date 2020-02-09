@@ -2,10 +2,18 @@ import socket
 import threading
 import time
 
+class MalformedFrameError(Exception):
+    def __init__(self, expression=None, message=None):
+        self.expression = expression
+        self.message = message
+
 class DNSframe:
     def __init__(self, data):
         if len(data) < 12:
-            return
+            raise MalformedFrameError()
+
+        self.queries = []
+        self.answers = []
 
         # TRANSACTION ID: 2 BYTES
         self.id = data[:2]
@@ -75,7 +83,6 @@ class DNSframe:
         self.arcount = int.from_bytes(data[10:12], 'big')
 
         # PARSE QUERIES
-        self.queries = []
         index = 12
         for i in range(self.qdcount):
             self.queries.append({})
@@ -86,16 +93,17 @@ class DNSframe:
             # number of octets.  The domain name terminates with the
             # zero length octet for the null label of the root.  Note
             # that this field may be an odd number of octets; no padding is used.
-            if len(data) <  index:
-                return
+            if len(data) <= index:
+                raise MalformedFrameError()
+
             index, self.queries[i]['qname'] = DNSframe.parse_name(data, index)
 
             # QTYPE - a two octet code which specifies the type of the query.
             # The values for this field include all codes valid for a
             # TYPE field, together with some more general codes which
             # can match more than one type of RR.
-            if len(data) < index + 2:
-                return
+            if len(data) <= index + 2:
+                raise MalformedFrameError()
             self.queries[i]['qtype'] = int.from_bytes(data[index:index + 2], 'big')
             index += 2
 
@@ -103,33 +111,34 @@ class DNSframe:
             # The values for this field include all codes valid for a
             # TYPE field, together with some more general codes which
             # can match more than one type of RR.
-            if len(data) < index + 2:
-                return
+            if len(data) <= index + 2:
+                raise MalformedFrameError()
             self.queries[i]['qclass'] = int.from_bytes(data[index: index + 2], 'big')
             index += 2
 
-        # PARSE resource record AKA answer
-        self.answers = []
+        if index >= len(data):
+            return
+        # parse resource record AKA answer
         for i in range(self.ancount):
             self.answers.append({})
             self.answers[i]['name'] = []
 
             # NAME - a domain name to which this resource record pertains.
-            if len(data) < index:
-                return
+            if len(data) <= index:
+                raise MalformedFrameError()
             index, self.answers[i]['name'] = DNSframe.parse_name(data, index)
 
             # TYPE - two octets containing one of the RR type codes.  This
             # field specifies the meaning of the data in the RDATA field.
-            if len(data) < index + 2:
-                return
+            if len(data) <= index + 2:
+                raise MalformedFrameError()
             self.answers[i]['type'] = int.from_bytes(data[index:index + 2], 'big')
             index += 2
 
             # CLASS - two octets which specify the class of the data in the RDATA field.
             self.answers[i]['class'] = int.from_bytes(data[index: index + 2], 'big')
-            if len(data) < index + 2:
-                return
+            if len(data) <= index + 2:
+                raise MalformedFrameError()
             index += 2
 
             # TTL - a 32 bit unsigned integer that specifies the time
@@ -137,14 +146,14 @@ class DNSframe:
             # cached before it should be discarded.  Zero values are
             # interpreted to mean that the RR can only be used for the
             # transaction in progress, and should not be cached.
-            if len(data) < index + 4:
-                return
+            if len(data) <= index + 4:
+                raise MalformedFrameError()
             self.answers[i]['ttl'] = int.from_bytes(data[index: index + 4], 'big')
             index += 4
 
             # RDLENGTH - an unsigned 16 bit integer that specifies the length in octets of the RDATA field.
-            if len(data) < index + 2:
-                return
+            if len(data) <= index + 2:
+                raise MalformedFrameError()
             self.answers[i]['rdlength'] = int.from_bytes(data[index: index + 2], 'big')
             index += 2
 
@@ -153,14 +162,16 @@ class DNSframe:
             # according to the TYPE and CLASS of the resource record.
             # For example, the if the TYPE is A and the CLASS is IN,
             # the RDATA field is a 4 octet ARPA Internet address.
-            if len(data) < index + self.answers[i]['rdlength']:
-                return
+            if len(data) <= index + self.answers[i]['rdlength']:
+                raise MalformedFrameError()
             self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
             index += self.answers[i]['rdlength']
 
     @staticmethod
     def parse_name(data, index):
         ans = []
+        if index >= len(data):
+            raise MalformedFrameError()
         cnt = data[index]
         next_index = index
         while cnt != 0:
@@ -176,12 +187,53 @@ class DNSframe:
                 next_index = index + cnt
 
                 # parse cnt bytes
+                if index + cnt >= len(data):
+                    raise MalformedFrameError()
                 ans.append(data[index: index + cnt])
                 index = next_index
+                if index >= len(data):
+                    raise MalformedFrameError()
                 cnt = data[index]
 
         return next_index + 1, ans
 
+    def to_bytes(self, include_len=True):
+        frame = b''
+
+        # HEADER
+        frame += self.id
+        frame += ((self.qr << 7) | (self.opcode << 3) | (self.aa << 2) | (self.tc << 1) | self.rd).to_bytes(1, 'big')
+        frame += ((self.ra << 7) | self.rcode).to_bytes(1, 'big')
+        frame += self.qdcount.to_bytes(2, 'big')
+        frame += self.ancount.to_bytes(2, 'big')
+        frame += self.nscount.to_bytes(2, 'big')
+        frame += self.arcount.to_bytes(2, 'big')
+
+        # QUERY
+        for query in self.queries:
+            for label in query['qname']:
+                frame += len(label).to_bytes(1, 'big')
+                frame += label
+            frame += b'\x00'
+            frame += query['qtype'].to_bytes(2, 'big')
+            frame += query['qclass'].to_bytes(2, 'big')
+
+        # RESOURCE RECORDS
+        for answer in self.answers:
+            for label in answer['name']:
+                frame += len(label).to_bytes(1, 'big')
+                frame += label
+            frame += b'\x00'
+            frame += answer['type'].to_bytes(2, 'big')
+            frame += answer['class'].to_bytes(2, 'big')
+            frame += answer['ttl'].to_bytes(4, 'big')
+            frame += answer['rdlength'].to_bytes(2, 'big')
+            frame += answer['rdata']
+
+        if include_len:
+            return len(frame).to_bytes(2, 'big') + frame
+        else:
+            return frame
 
 class DNSserver:
     def __init__(self, verbose=True):
@@ -220,7 +272,11 @@ class DNSserver:
         if self.verbose:
             print('[+]Received', frame_size, 'bytes from', addr, flush=True)
 
-        packet = DNSframe(data)
+        try:
+            packet = DNSframe(data)
+        except MalformedFrameError:
+            # send wrong format packet
+            pass
 
     def close(self, code=0):
         if self.verbose:
