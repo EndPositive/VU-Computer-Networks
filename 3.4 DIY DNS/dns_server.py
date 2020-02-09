@@ -81,13 +81,13 @@ class DNSframe:
             self.queries.append({})
             self.queries[i]['qname'] = []
 
-            if len(data) <  index:
-                return
             # QNAME - a domain name represented as a sequence of labels, where
             # each label consists of a length octet followed by that
             # number of octets.  The domain name terminates with the
             # zero length octet for the null label of the root.  Note
             # that this field may be an odd number of octets; no padding is used.
+            if len(data) <  index:
+                return
             index, self.queries[i]['qname'] = DNSframe.parse_name(data, index)
 
             # QTYPE - a two octet code which specifies the type of the query.
@@ -114,9 +114,9 @@ class DNSframe:
             self.answers.append({})
             self.answers[i]['name'] = []
 
+            # NAME - a domain name to which this resource record pertains.
             if len(data) < index:
                 return
-            # NAME - a domain name to which this resource record pertains.
             index, self.answers[i]['name'] = DNSframe.parse_name(data, index)
 
             # TYPE - two octets containing one of the RR type codes.  This
