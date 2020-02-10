@@ -8,7 +8,24 @@ class MalformedFrameError(Exception):
         self.message = message
 
 class DNSframe:
-    def __init__(self, data):
+    def __init__(self, data=None):
+        if data is None:
+            self.id = b''
+            self.qr = 0
+            self.opcode = 0
+            self.aa = 0
+            self.tc = 0
+            self.rd = 1
+            self.ra = 1
+            self.rcode = 0
+            self.qdcount = 0
+            self.ancount = 0
+            self.nscount = 0
+            self.arcount = 0
+            self.queries = []
+            self.answers = []
+            return
+
         if len(data) < 12:
             raise MalformedFrameError()
 
@@ -237,11 +254,14 @@ class DNSframe:
 
 class DNSserver:
     def __init__(self, verbose=True):
+        if verbose:
+            print('[+]Starting server...', flush=True)
         self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.verbose = verbose
         self.connections = []
 
     def start(self, timeout=None):
+        self.listen_socket.bind(('192.168.0.173', 53))
         self.listen_socket.listen()
         if self.verbose:
             print('[+]Listening for connections', flush=True)
@@ -265,7 +285,7 @@ class DNSserver:
         # first 2 bytes indicate the message size
         data = conn.recv(1024)
         frame_size = int.from_bytes(data[:2], 'big')
-        data = data[:2]
+        data = data[2:]
         while len(data) < frame_size:
             data += conn.recv(1024)
 
@@ -275,8 +295,18 @@ class DNSserver:
         try:
             packet = DNSframe(data)
         except MalformedFrameError:
-            # send wrong format packet
-            pass
+            if self.verbose:
+                print('[+]Frame is malformed. Closing connection...', flush=True, end='')
+            if len(data) >= 2:
+                reply = DNSframe()
+                reply.id = data[:2]
+                reply.qr = 1
+                reply.rcode = 1
+                conn.sendall(reply.to_bytes())
+            conn.close()
+            print('done', flush=True)
+
+        # TODO: HANDLE PACKET
 
     def close(self, code=0):
         if self.verbose:
@@ -287,4 +317,5 @@ class DNSserver:
 
 
 if __name__ == '__main__':
-    pass
+    server = DNSserver()
+    server.start()
