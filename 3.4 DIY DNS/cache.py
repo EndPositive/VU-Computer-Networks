@@ -57,7 +57,7 @@ class Cache:
         with open(self.cache_file, 'wb') as f:
             pickle.dump(self.rr, f)
 
-    def update_rr_thread(self, timeout=120):
+    def update_rr_thread(self, timeout=60):
         while True:
             self.update_rr()
             time.sleep(timeout)
@@ -120,13 +120,19 @@ class Cache:
         except:
             self.rtt[ip] = 100000000
 
+    @staticmethod
+    def make_name(text):
+        return '.'.join([x.decode('ascii') for x in text])
+
     def fetch_record(self, name):
+        name = self.make_name(name)
         if name in self.rr:
             if self.rr[name][0] < time.time():
                 del self.rr[name]
                 return
             to_ret = cp(self.rr[name][1])
             to_ret['ttl'] = int(self.rr[name][0] - time.time())
+            print('[+]Served ', to_ret['name'], ' from cache')
             return to_ret
         return
 
