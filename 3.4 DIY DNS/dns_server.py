@@ -449,7 +449,6 @@ class DNSserver:
             return
 
         # TODO: CACHE IF THERE IS NO ERR
-        # TODO: ERR HANDLE SEND() AND RECV()
 
         # set the id to the one that was given in the request
         response.id = query.id
