@@ -316,7 +316,7 @@ class DNSserver:
             print('done', flush=True)
             return
 
-        # if it is not a query just exit
+        # if it is not a query send format err and exit
         if query.qr != 0:
             response = DNSframe()
 
