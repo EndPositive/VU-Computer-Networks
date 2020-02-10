@@ -318,6 +318,8 @@ class DNSserver:
 
         # if it is not a query send format err and exit
         if query.qr != 0:
+            if self.verbose:
+                print('[-]Frame is not a query', flush=True)
             response = DNSframe()
 
             # set id to the one from the request
@@ -333,6 +335,8 @@ class DNSserver:
             conn.close()
             return
 
+        if self.verbose:
+            print('[+]Making recursive call...', end='', flush=True)
         # we will just forward the query to google's 8.8.8.8 and do it recursively regardless
         forward_request = cp(query)
 
@@ -359,6 +363,8 @@ class DNSserver:
         while len(server_response) < server_response_size:
             server_response += forward_socket.recv(1024)
         forward_socket.close()
+        if self.verbose:
+            print('done', flush=True)
 
         # parse the response and send it back
         try:
@@ -381,6 +387,7 @@ class DNSserver:
             return
 
         # TODO: CACHE IF THERE IS NO ERR
+        # TODO: ERR HANDLE SEND() AND RECV()
 
         # set the id to the one that was given in the request
         response.id = query.id
