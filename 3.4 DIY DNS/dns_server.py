@@ -284,12 +284,24 @@ class DNSserver:
         if self.verbose:
             print('[+]Thread spawned', flush=True)
 
+        try:
+            data = conn.recv(1024)
+        except:
+            if self.verbose:
+                print('[-]Error while receiving', flush=True)
+            conn.close()
+            return
         # first 2 bytes indicate the message size
-        data = conn.recv(1024)
         frame_size = int.from_bytes(data[:2], 'big')
         data = data[2:]
         while len(data) < frame_size:
-            data += conn.recv(1024)
+            try:
+                data += conn.recv(1024)
+            except:
+                if self.verbose:
+                    print('[-]Error while receiving', flush=True)
+                conn.close()
+                return
 
         if self.verbose:
             print('[+]Received', frame_size, 'bytes from', addr, flush=True)
@@ -310,10 +322,14 @@ class DNSserver:
 
                 # set to format error
                 response.rcode = 1
-
-                conn.sendall(response.to_bytes())
+                try:
+                    conn.sendall(response.to_bytes())
+                except:
+                    if self.verbose:
+                        print('[-]Failed to send', flush=True)
             conn.close()
-            print('done', flush=True)
+            if self.verbose:
+                print('done', flush=True)
             return
 
         # if it is not a query send format err and exit
@@ -331,7 +347,11 @@ class DNSserver:
             # set to format error
             response.rcode = 1
 
-            conn.sendall(response.to_bytes())
+            try:
+                conn.sendall(response.to_bytes())
+            except:
+                if self.verbose:
+                    print('[-]Failed to send', flush=True)
             conn.close()
             return
 
@@ -354,14 +374,30 @@ class DNSserver:
         # open connection to 8.8.8.8 and send the request
         forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         forward_socket.connect(('8.8.8.8', 53))
-        forward_socket.sendall(forward_request.to_bytes())
+        try:
+            forward_socket.sendall(forward_request.to_bytes())
+        except:
+            if self.verbose:
+                print('[-]Failed to send', flush=True)
 
         # get the response
-        server_response = forward_socket.recv(1024)
+        try:
+            server_response = forward_socket.recv(1024)
+        except:
+            if self.verbose:
+                print('[-]Error while receiving', flush=True)
+            forward_socket.close()
+            return
         server_response_size = int.from_bytes(server_response[:2], 'big')
         server_response = server_response[2:]
         while len(server_response) < server_response_size:
-            server_response += forward_socket.recv(1024)
+            try:
+                server_response += forward_socket.recv(1024)
+            except:
+                if self.verbose:
+                    print('[-]Error while receiving', flush=True)
+                forward_socket.close()
+                return
         forward_socket.close()
         if self.verbose:
             print('done', flush=True)
@@ -370,7 +406,8 @@ class DNSserver:
         try:
             response = DNSframe(server_response)
         except MalformedFrameError:
-            print('[-]Uhm...looks like google forgot how to DNS')
+            if self.verbose:
+                print('[-]Uhm...looks like google forgot how to DNS', flush=True)
             response = DNSframe()
 
             # set id to the one from the request
@@ -381,13 +418,17 @@ class DNSserver:
 
             # set to server failure
             response.rcode = 2
-
-            conn.sendall(response.to_bytes())
+            try:
+                conn.sendall(response.to_bytes())
+            except:
+                if self.verbose:
+                    print('[-]Failed to send', flush=True)
             conn.close()
             return
 
         if forward_request.id != response.id:
-            print('[-]Wrong id received from the name server...closing connection')
+            if self.verbose:
+                print('[-]Wrong id received from the name server...closing connection', flush=True)
             response = DNSframe()
 
             # set id to the one from the request
@@ -399,7 +440,11 @@ class DNSserver:
             # set to server failure
             response.rcode = 2
 
-            conn.sendall(response.to_bytes())
+            try:
+                conn.sendall(response.to_bytes())
+            except:
+                if self.verbose:
+                    print('[-]Failed to send', flush=True)
             conn.close()
             return
 
