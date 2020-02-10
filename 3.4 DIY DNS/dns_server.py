@@ -264,8 +264,8 @@ class DNSserver:
         self.connections = []
         self.cache = Cache()
 
-    def start(self, timeout=None):
-        self.listen_socket.bind(('192.168.0.173', 53))
+    def start(self, timeout=None, port=53):
+        self.listen_socket.bind(('192.168.0.173', port))
         self.listen_socket.listen()
         if self.verbose:
             print('[+]Listening for connections', flush=True)
@@ -358,11 +358,11 @@ class DNSserver:
             return
 
         if self.verbose:
-            print('[+]Making recursive call...', end='', flush=True)
+            print('[+]Making recursive call', flush=True)
 
         try:
             # make domain names from the raw query data
-            requested_names = ['.'.join([y.decode('ascii') for y in x]) for x in query.queries]
+            requested_names = ['.'.join([y.decode('ascii') for y in x['qname']]) for x in query.queries]
         except UnicodeDecodeError:
             if self.verbose:
                 print('[-]Query is not ascii', flush=True)
@@ -404,7 +404,7 @@ class DNSserver:
         # make a list of the names we already have (so we can delete them from the query)
         to_delete = []
         for i, name in enumerate(cached_names):
-            if name is None:
+            if name is not None:
                 to_delete.append(i)
 
         # delete the names from the query
@@ -413,65 +413,69 @@ class DNSserver:
             del forward_request.queries[i]
         forward_request.qdcount -= len(to_delete)
 
-        found_good_server = False
-        for server in self.cache.get_best_servers(20):
-            # open connection to the server and send the request
-            forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            forward_socket.connect((server, 53))
-            try:
-                forward_socket.sendall(forward_request.to_bytes())
-            except socket.error:
-                if self.verbose:
-                    print('[-]Failed to send', flush=True)
-                    continue
-
-            # get the response
-            try:
-                server_response = forward_socket.recv(1024)
-            except socket.error:
-                if self.verbose:
-                    print('[-]Error while receiving', flush=True)
-                forward_socket.close()
-                continue
-            server_response_size = int.from_bytes(server_response[:2], 'big')
-            server_response = server_response[2:]
-            while len(server_response) < server_response_size:
+        # if all queries are cached
+        if forward_request.qdcount == 0:
+            response = DNSframe()
+            found_good_server = True
+        else:
+            found_good_server = False
+            for server in self.cache.get_best_servers(20):
+                # open connection to the server and send the request
+                forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                forward_socket.connect((server, 53))
                 try:
-                    server_response += forward_socket.recv(1024)
+                    forward_socket.sendall(forward_request.to_bytes())
+                except socket.error:
+                    if self.verbose:
+                        print('[-]Failed to send', flush=True)
+                        continue
+
+                # get the response
+                try:
+                    server_response = forward_socket.recv(1024)
                 except socket.error:
                     if self.verbose:
                         print('[-]Error while receiving', flush=True)
                     forward_socket.close()
                     continue
-            forward_socket.close()
-            if self.verbose:
-                print('done', flush=True)
+                server_response_size = int.from_bytes(server_response[:2], 'big')
+                server_response = server_response[2:]
+                while len(server_response) < server_response_size:
+                    try:
+                        server_response += forward_socket.recv(1024)
+                    except socket.error:
+                        if self.verbose:
+                            print('[-]Error while receiving', flush=True)
+                        forward_socket.close()
+                        continue
+                forward_socket.close()
+                # parse the response
+                try:
+                    response = DNSframe(server_response)
+                except MalformedFrameError:
+                    if self.verbose:
+                        print('[-]Uhm...looks like you forgot how to DNS: malformed frame from server', flush=True)
+                    continue
 
-            # parse the response
-            try:
-                response = DNSframe(server_response)
-            except MalformedFrameError:
-                if self.verbose:
-                    print('[-]Uhm...looks like you forgot how to DNS: malformed frame from server', flush=True)
-                continue
+                if forward_request.id != response.id:
+                    if self.verbose:
+                        print('[-]Wrong id received from the name server', flush=True)
+                    continue
 
-            if forward_request.id != response.id:
-                if self.verbose:
-                    print('[-]Wrong id received from the name server', flush=True)
-                continue
+                if response.rcode != 0:
+                    if self.verbose:
+                        print('[-]Received error code from the server', flush=True)
+                    continue
 
-            if forward_request.rcode != 0:
-                if self.verbose:
-                    print('[-]Received error code from the server', flush=True)
-                continue
+                if response.qr != 1:
+                    if self.verbose:
+                        print('[-]Received query instead of response', flush=True)
+                    continue
 
-            if forward_request.qr != 1:
-                if self.verbose:
-                    print('[-]Received query instead of response', flush=True)
-                continue
+                found_good_server = True
+                break
 
-            found_good_server = True
-
+        # check if no server was found
         if not found_good_server:
             if self.verbose:
                 print('[-]No good server found...closing connection', flush=True)
@@ -492,6 +496,9 @@ class DNSserver:
                     print('[-]Failed to send', flush=True)
             conn.close()
             return
+
+        if self.verbose:
+            print('[+]Preparing response')
 
         # cache data from server
         for answer in response.answers:
@@ -518,13 +525,16 @@ class DNSserver:
             response.answers.insert(i, cached_names[cnt])
             cnt += 1
 
+        if self.verbose:
+            print('[+]Sending response')
         # send back the response
         conn.sendall(response.to_bytes())
 
         # close the connection and exit the thread
         conn.close()
+        if self.verbose:
+            print('[+]Connection closed')
         return
-
 
     def close(self, code=0):
         if self.verbose:
@@ -536,4 +546,4 @@ class DNSserver:
 
 if __name__ == '__main__':
     server = DNSserver()
-    server.start()
+    server.start(port=2345)

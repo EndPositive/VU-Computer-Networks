@@ -126,7 +126,7 @@ class Cache:
                 del self.rr[name]
                 return
             to_ret = cp(self.rr[name][1])
-            to_ret['ttl'] = self.rr[name][0] - time.time()
+            to_ret['ttl'] = int(self.rr[name][0] - time.time())
             return to_ret
         return
 
