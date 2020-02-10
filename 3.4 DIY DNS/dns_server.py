@@ -1,6 +1,8 @@
 import socket
 import threading
 import time
+from copy import deepcopy as cp
+from os import urandom
 
 class MalformedFrameError(Exception):
     def __init__(self, expression=None, message=None):
@@ -293,20 +295,113 @@ class DNSserver:
             print('[+]Received', frame_size, 'bytes from', addr, flush=True)
 
         try:
-            packet = DNSframe(data)
+            query = DNSframe(data)
         except MalformedFrameError:
             if self.verbose:
-                print('[+]Frame is malformed. Closing connection...', flush=True, end='')
+                print('[-]Frame is malformed. Closing connection...', flush=True, end='')
             if len(data) >= 2:
-                reply = DNSframe()
-                reply.id = data[:2]
-                reply.qr = 1
-                reply.rcode = 1
-                conn.sendall(reply.to_bytes())
+                response = DNSframe()
+
+                # set id to the one from the request
+                response.id = data[:2]
+
+                # set to response
+                response.qr = 1
+
+                # set to format error
+                response.rcode = 1
+
+                conn.sendall(response.to_bytes())
             conn.close()
             print('done', flush=True)
+            return
 
-        # TODO: HANDLE PACKET
+        # if it is not a query just exit
+        if query.qr != 0:
+            response = DNSframe()
+
+            # set id to the one from the request
+            response.id = data[:2]
+
+            # set to response
+            response.qr = 1
+
+            # set to format error
+            response.rcode = 1
+
+            conn.sendall(response.to_bytes())
+            conn.close()
+            return
+
+        # we will just forward the query to google's 8.8.8.8 and do it recursively regardless
+        forward_request = cp(query)
+
+        # set the recursion flags
+        forward_request.rd = 1
+        forward_request.ra = 1
+
+        # set new id
+        forward_request.id = urandom(2)
+
+        # set answers to [] just in case
+        forward_request.ancount = 0
+        forward_request.answers = []
+
+        # open connection to 8.8.8.8 and send the request
+        forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        forward_socket.connect(('8.8.8.8', 53))
+        forward_socket.sendall(forward_request.to_bytes())
+
+        # get the response
+        server_response = forward_socket.recv(1024)
+        server_response_size = int.from_bytes(server_response[:2], 'big')
+        server_response = server_response[2:]
+        while len(server_response) < server_response_size:
+            server_response += forward_socket.recv(1024)
+        forward_socket.close()
+
+        # parse the response and send it back
+        try:
+            response = DNSframe(server_response)
+        except MalformedFrameError:
+            print('[-]Uhm...looks like google forgot how to DNS')
+            response = DNSframe()
+
+            # set id to the one from the request
+            response.id = query.id
+
+            # set to response
+            response.qr = 1
+
+            # set to server failure
+            response.rcode = 2
+
+            conn.sendall(response.to_bytes())
+            conn.close()
+            return
+
+        # TODO: CACHE IF THERE IS NO ERR
+
+        # set the id to the one that was given in the request
+        response.id = query.id
+
+        # set to response just in case
+        response.qr = 1
+
+        # set the Authoritative answer to 0 because we are not that
+        response.aa = 0
+
+        # set the recursion to true
+        response.rd = 1
+        response.ra = 1
+
+        # send back the response
+        conn.sendall(response.to_bytes())
+
+        # close the connection and exit the thread
+        conn.close()
+        return
+
 
     def close(self, code=0):
         if self.verbose:
