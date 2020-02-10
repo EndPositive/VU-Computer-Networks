@@ -332,8 +332,8 @@ class DNSserver:
                 print('done', flush=True)
             return
 
-        # if it is not a query send format err and exit
-        if query.qr != 0:
+        # if it is not a standard query send format err and exit
+        if query.qr != 0 or query.opcode != 0:
             if self.verbose:
                 print('[-]Frame is not a query', flush=True)
             response = DNSframe()
@@ -449,6 +449,7 @@ class DNSserver:
             return
 
         # TODO: CACHE IF THERE IS NO ERR
+        # TODO: BETTER HANDLE SERVER RESPONSE
 
         # set the id to the one that was given in the request
         response.id = query.id
