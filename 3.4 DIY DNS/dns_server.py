@@ -344,7 +344,7 @@ class DNSserver:
         forward_request.rd = 1
         forward_request.ra = 1
 
-        # set new id
+        # generate random id for the message
         forward_request.id = urandom(2)
 
         # set answers to [] just in case
