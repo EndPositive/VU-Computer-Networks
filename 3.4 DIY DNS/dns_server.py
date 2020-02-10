@@ -386,6 +386,23 @@ class DNSserver:
             conn.close()
             return
 
+        if forward_request.id != response.id:
+            print('[-]Wrong id received from the name server...closing connection')
+            response = DNSframe()
+
+            # set id to the one from the request
+            response.id = query.id
+
+            # set to response
+            response.qr = 1
+
+            # set to server failure
+            response.rcode = 2
+
+            conn.sendall(response.to_bytes())
+            conn.close()
+            return
+
         # TODO: CACHE IF THERE IS NO ERR
         # TODO: ERR HANDLE SEND() AND RECV()
 
