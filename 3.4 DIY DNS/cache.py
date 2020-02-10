@@ -3,12 +3,13 @@ import time
 import socket
 import threading
 import os
+from copy import deepcopy as cp
 
 '''
-self.rr['google.com'] = [ttl, [ip addresses of google.com]]
+self.rr['google.com'] = [time this entry expires, [answer field from the dns frame]]
 self.rtt['google.com'] = time to google.com
 '''
-class cache:
+class Cache:
     def __init__(self, server_file='nl.txt', cache_file=None):
         with open(server_file, 'r') as f:
             self.servers = f.read().split('\n')
@@ -124,13 +125,16 @@ class cache:
             if self.rr[name][0] < time.time():
                 del self.rr[name]
                 return
-            return [self.rr[name][0] - time.time(), self.rr[name][1]]
+            to_ret = cp(self.rr[name][1])
+            to_ret['ttl'] = self.rr[name][0] - time.time()
+            return to_ret
         return
 
-    def add_record(self, name, addr, ttl):
-        self.rr[name] = [ttl + time.time(), addr]
+    def add_record(self, addr):
+        name = '.'.join([x.decode('ascii') for x in addr['name']])
+        self.rr[name] = [addr['ttl'] + time.time(), addr]
 
 if __name__ == '__main__':
-    c = cache()
+    c = Cache()
     c.add_record('12', 'sss', 12)
     print(c.fetch_record('12'))
