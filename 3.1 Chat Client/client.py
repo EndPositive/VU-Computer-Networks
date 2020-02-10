@@ -16,6 +16,10 @@ def receive(conn, size):
         if not data:
             return False
         else:
+            while not data[-1:] == b'\n':
+                data += conn.recv(size)
+                if not data:
+                    break
             return data.decode("utf-8")
     except socket.error:
         return False
