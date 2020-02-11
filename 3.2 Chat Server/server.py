@@ -51,10 +51,7 @@ class ChatServer:
         return False
 
     def getNames(self):
-        names = []
-        for x in self.connections:
-            names.append(x[2])
-        return names
+        return [x[2] for x in self.connections]
 
     def __pull(self, conn, addr, name):
         disconnect = False
