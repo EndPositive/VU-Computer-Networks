@@ -36,6 +36,7 @@ MESSAGES
 
 OTHER COMMANDS
 -get_credentials: will send "CREDENTIALS skype=(johndoe,P4ssw0rd) gmail=(johndoe@gmail.com,plzD0ntH4xxorMe) checksum=%s", checksum sent in the HELLO response
+The server checks the message (probably decrypts it), but does not care about the checksum.
 It is encrypted with XOR encryption as follows:
 enc:
 key=KDF(bot_id)

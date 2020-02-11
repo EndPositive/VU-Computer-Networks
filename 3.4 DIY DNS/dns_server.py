@@ -357,33 +357,15 @@ class DNSserver:
             conn.close()
             return
 
+        # check if the frame contains more than 1 query and remove them if so
+        # do this because it makes things simple, and because nobody on the planet implements it
+        # WHY IS IT EVEN IN THE SPECIFICATION HONESTLY
+        for i in range(1, len(query.queries)):
+            del query.queries[i]
+        query.qdcount = 1
+
         if self.verbose:
             print('[+]Making recursive call', flush=True)
-
-        try:
-            # make domain names from the raw query data
-            requested_names = ['.'.join([y.decode('ascii') for y in x['qname']]) for x in query.queries]
-        except UnicodeDecodeError:
-            if self.verbose:
-                print('[-]Query is not ascii', flush=True)
-            response = DNSframe()
-
-            # set id to the one from the request
-            response.id = data[:2]
-
-            # set to response
-            response.qr = 1
-
-            # set to format error
-            response.rcode = 1
-
-            try:
-                conn.sendall(response.to_bytes())
-            except socket.error:
-                if self.verbose:
-                    print('[-]Failed to send', flush=True)
-            conn.close()
-            return
 
         # make packet to send from the query
         forward_request = cp(query)
@@ -400,28 +382,16 @@ class DNSserver:
         forward_request.answers = []
 
         # check for the cached names
-        cached_names = [self.cache.fetch_record(x) for x in requested_names]
-        # make a list of the names we already have (so we can delete them from the query)
-        to_delete = []
-        for i, name in enumerate(cached_names):
-            if name is not None:
-                to_delete.append(i)
-
-        # delete the names from the query
-        # go in reverse so we don't mess up the indexes
-        for i in reversed(to_delete):
-            del forward_request.queries[i]
-        forward_request.qdcount -= len(to_delete)
-
-        # if all queries are cached
-        if forward_request.qdcount == 0:
+        record_cache = self.cache.fetch_record(query.queries[0]['qname'])
+        if record_cache is not None:
             response = DNSframe()
-            found_good_server = True
+            is_cached = True
         else:
             found_good_server = False
             for server in self.cache.get_best_servers(20):
                 # open connection to the server and send the request
                 forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                # forward_socket.connect((server, 53))
                 forward_socket.connect((server, 53))
                 try:
                     forward_socket.sendall(forward_request.to_bytes())
@@ -475,34 +445,38 @@ class DNSserver:
                 found_good_server = True
                 break
 
-        # check if no server was found
-        if not found_good_server:
-            if self.verbose:
-                print('[-]No good server found...closing connection', flush=True)
-            response = DNSframe()
-
-            # set id to the one from the request
-            response.id = query.id
-
-            # set to response
-            response.qr = 1
-
-            # set to server failure
-            response.rcode = 2
-            try:
-                conn.sendall(response.to_bytes())
-            except socket.error:
+            # check if no server was found
+            if not found_good_server:
                 if self.verbose:
-                    print('[-]Failed to send', flush=True)
-            conn.close()
-            return
+                    print('[-]No good server found...closing connection', flush=True)
+                response = DNSframe()
+
+                # set id to the one from the request
+                response.id = query.id
+
+                # set to response
+                response.qr = 1
+
+                # set to server failure
+                response.rcode = 2
+                try:
+                    conn.sendall(response.to_bytes())
+                except socket.error:
+                    if self.verbose:
+                        print('[-]Failed to send', flush=True)
+                conn.close()
+                return
 
         if self.verbose:
             print('[+]Preparing response')
 
-        # cache data from server
-        for answer in response.answers:
-            self.cache.add_record(answer)
+        if record_cache:
+            response.ancount = 1
+            response.answers = [record_cache]
+        else:
+            # cache data from server
+            for answer in response.answers:
+                self.cache.add_record(answer)
 
         # set the id to the one that was given in the request
         response.id = query.id
@@ -513,17 +487,6 @@ class DNSserver:
         # set the recursion to true
         response.rd = 1
         response.ra = 1
-
-        # insert the data we already had cached
-        # restore queries
-        response.queries = query.queries
-        response.qdcount = query.qdcount
-        # restore answers
-        response.ancount += len(to_delete)
-        cnt = 0
-        for i in to_delete:
-            response.answers.insert(i, cached_names[cnt])
-            cnt += 1
 
         if self.verbose:
             print('[+]Sending response')
@@ -546,4 +509,4 @@ class DNSserver:
 
 if __name__ == '__main__':
     server = DNSserver()
-    server.start(port=2345)
+    server.start(port=12341)
