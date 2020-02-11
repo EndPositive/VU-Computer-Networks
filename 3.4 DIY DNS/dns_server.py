@@ -32,9 +32,6 @@ class DNSframe:
         if len(data) < 12:
             raise MalformedFrameError()
 
-        self.queries = []
-        self.answers = []
-
         # TRANSACTION ID: 2 BYTES
         self.id = data[:2]
 
@@ -103,6 +100,7 @@ class DNSframe:
         self.arcount = int.from_bytes(data[10:12], 'big')
 
         # PARSE QUERIES
+        self.queries = []
         index = 12
         for i in range(self.qdcount):
             self.queries.append({})
@@ -139,6 +137,8 @@ class DNSframe:
         if index >= len(data):
             return
         # parse resource record AKA answer
+        self.answers = []
+        # DOESN'T RETURN???
         for i in range(self.ancount):
             self.answers.append({})
             self.answers[i]['name'] = []
@@ -190,6 +190,7 @@ class DNSframe:
     @staticmethod
     def parse_name(data, index):
         ans = []
+        # REDUNDANT CHECK??
         if index >= len(data):
             raise MalformedFrameError()
         cnt = data[index]
@@ -259,57 +260,60 @@ class DNSserver:
     def __init__(self, verbose=True):
         if verbose:
             print('[+]Starting server...', flush=True)
-        self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.verbose = verbose
         self.connections = []
         self.cache = Cache()
 
     def start(self, timeout=None, port=53):
-        self.listen_socket.bind(('192.168.0.173', port))
-        self.listen_socket.listen()
+        print(port)
+        self.listen_socket.bind(('', port))
         if self.verbose:
             print('[+]Listening for connections', flush=True)
 
         start_time = time.time()
         while (timeout is None) or (time.time() - start_time < timeout):
-            conn, addr = self.listen_socket.accept()
-            if self.verbose:
-                print('[+]Connection received from', addr, flush=True)
-            self.connections.append(threading.Thread(target=self.handle_connection, args=(conn, addr)))
-            self.connections[-1].daemon = True
-            self.connections[-1].start()
+            self.listen()
             time.sleep(0.1)
 
         self.close()
 
-    def handle_connection(self, conn, addr):
+    def listen(self):
         if self.verbose:
-            print('[+]Thread spawned', flush=True)
+            print('[+]Listening', flush=True)
 
         try:
-            data = conn.recv(1024)
+            # Receive any packet
+            data, addr = self.listen_socket.recvfrom(512)
+            query = DNSframe(data)
+
+            # Check if that packet has been truncated
+            tc = query.tc
+            while tc == 1:
+                dataTC, addrTC = self.listen_socket.recvfrom(512)
+
+                # Check if connection is still matching
+                if addr == addrTC:
+                    queryTC = DNSframe(data)
+
+                    # Check if id from the requests are still the same
+                    if query.id == queryTC.id:
+                        # Add the queries/answers to the main query
+                        query.qdcount += queryTC.qdcount
+                        query.queries.extend(queryTC.queries)
+                        query.ancount += queryTC.ancount
+                        query.answers.extend(queryTC.answers)
+                        tc = queryTC
+                    else:
+                        if self.verbose:
+                            print('[-]Received too many requests at the same time...', flush=True)
+                else:
+                    if self.verbose:
+                        print('[-]Received too many requests at the same time...', flush=True)
         except socket.error:
             if self.verbose:
                 print('[-]Error while receiving', flush=True)
-            conn.close()
             return
-        # first 2 bytes indicate the message size
-        frame_size = int.from_bytes(data[:2], 'big')
-        data = data[2:]
-        while len(data) < frame_size:
-            try:
-                data += conn.recv(1024)
-            except socket.error:
-                if self.verbose:
-                    print('[-]Error while receiving', flush=True)
-                conn.close()
-                return
-
-        if self.verbose:
-            print('[+]Received', frame_size, 'bytes from', addr, flush=True)
-
-        try:
-            query = DNSframe(data)
         except MalformedFrameError:
             if self.verbose:
                 print('[-]Frame is malformed. Closing connection...', flush=True, end='')
@@ -325,14 +329,16 @@ class DNSserver:
                 # set to format error
                 response.rcode = 1
                 try:
-                    conn.sendall(response.to_bytes())
+                    self.listen_socket.sendto(response.to_bytes(), addr)
                 except socket.error:
                     if self.verbose:
                         print('[-]Failed to send', flush=True)
-            conn.close()
             if self.verbose:
                 print('done', flush=True)
             return
+
+        if self.verbose:
+            print('[+]Received from', addr, flush=True)
 
         # if it is not a standard query send format err and exit
         if query.qr != 0 or query.opcode != 0:
@@ -350,11 +356,10 @@ class DNSserver:
             response.rcode = 1
 
             try:
-                conn.sendall(response.to_bytes())
+                self.listen_socket.sendto(response.to_bytes(), addr)
             except socket.error:
                 if self.verbose:
                     print('[-]Failed to send', flush=True)
-            conn.close()
             return
 
         # check if the frame contains more than 1 query and remove them if so
@@ -460,11 +465,10 @@ class DNSserver:
                 # set to server failure
                 response.rcode = 2
                 try:
-                    conn.sendall(response.to_bytes())
+                    self.listen_socket.send(response.to_bytes(), addr)
                 except socket.error:
                     if self.verbose:
                         print('[-]Failed to send', flush=True)
-                conn.close()
                 return
 
         if self.verbose:
@@ -491,10 +495,9 @@ class DNSserver:
         if self.verbose:
             print('[+]Sending response')
         # send back the response
-        conn.sendall(response.to_bytes())
+        self.listen_socket.sendto(response.to_bytes(include_len=False), addr)
 
         # close the connection and exit the thread
-        conn.close()
         if self.verbose:
             print('[+]Connection closed')
         return
