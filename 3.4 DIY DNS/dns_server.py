@@ -450,8 +450,8 @@ class DNSserver:
                     data += sockfd.recv(1024)
             query = DNSframe(data)
             # TODO: REMOVE LINE BELOW AND SOLVE THE PROBLEM
-            # THE PROBLEM IS THAT THE OS SENDS ARCOUNT AS 1 WHEN THERE ARE NO RECORDS IN THE AR SECTION
-            # query.arcount = 0
+            # THE PROBLEM IS THAT THE OS SENDS ARCOUNT AS 1
+            query.arcount = 0
 
             if self.verbose:
                 print('[+]Received from', addr, flush=True)
