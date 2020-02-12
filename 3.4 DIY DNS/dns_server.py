@@ -27,21 +27,24 @@ class MalformedFrameError(Exception):
 
 class DNSframe:
     def __init__(self, data=None):
+        self.id = b''
+        self.qr = 0
+        self.opcode = 0
+        self.aa = 0
+        self.tc = 0
+        self.rd = 1
+        self.ra = 1
+        self.rcode = 0
+        self.qdcount = 0
+        self.ancount = 0
+        self.nscount = 0
+        self.arcount = 0
+        self.queries = []
+        self.answers = []
+        self.name_servers = []
+        self.additional = []
+
         if data is None:
-            self.id = b''
-            self.qr = 0
-            self.opcode = 0
-            self.aa = 0
-            self.tc = 0
-            self.rd = 1
-            self.ra = 1
-            self.rcode = 0
-            self.qdcount = 0
-            self.ancount = 0
-            self.nscount = 0
-            self.arcount = 0
-            self.queries = []
-            self.answers = []
             return
 
         if len(data) < 12:
@@ -152,7 +155,7 @@ class DNSframe:
         self.answers = []
         if index >= len(data):
             return
-        # parse resource record AKA answer
+        # parse answer resource record
         for i in range(self.ancount):
             self.answers.append({})
             self.answers[i]['name'] = []
@@ -201,10 +204,115 @@ class DNSframe:
             self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
             index += self.answers[i]['rdlength']
 
+        self.name_servers = []
+        if index >= len(data):
+            return
+        # parse answer resource record
+        for i in range(self.nscount):
+            self.name_servers.append({})
+            self.name_servers[i]['name'] = []
+
+            # NAME - a domain name to which this resource record pertains.
+            if len(data) < index:
+                raise MalformedFrameError()
+            index, self.name_servers[i]['name'] = DNSframe.parse_name(data, index)
+
+            # TYPE - two octets containing one of the RR type codes.  This
+            # field specifies the meaning of the data in the RDATA field.
+            if len(data) < index + 2:
+                raise MalformedFrameError()
+            self.name_servers[i]['type'] = int.from_bytes(data[index:index + 2], 'big')
+            index += 2
+
+            # CLASS - two octets which specify the class of the data in the RDATA field.
+            self.name_servers[i]['class'] = int.from_bytes(data[index: index + 2], 'big')
+            if len(data) < index + 2:
+                raise MalformedFrameError()
+            index += 2
+
+            # TTL - a 32 bit unsigned integer that specifies the time
+            # interval (in seconds) that the resource record may be
+            # cached before it should be discarded.  Zero values are
+            # interpreted to mean that the RR can only be used for the
+            # transaction in progress, and should not be cached.
+            if len(data) < index + 4:
+                raise MalformedFrameError()
+            self.name_servers[i]['ttl'] = int.from_bytes(data[index: index + 4], 'big')
+            index += 4
+
+            # RDLENGTH - an unsigned 16 bit integer that specifies the length in octets of the RDATA field.
+            if len(data) < index + 2:
+                raise MalformedFrameError()
+            self.name_servers[i]['rdlength'] = int.from_bytes(data[index: index + 2], 'big')
+            index += 2
+
+            # RDATA - a variable length string of octets that describes the
+            # resource.  The format of this information varies
+            # according to the TYPE and CLASS of the resource record.
+            # For example, the if the TYPE is A and the CLASS is IN,
+            # the RDATA field is a 4 octet ARPA Internet address.
+            if len(data) < index + self.name_servers[i]['rdlength']:
+                raise MalformedFrameError()
+            self.name_servers[i]['rdata'] = data[index: index + self.name_servers[i]['rdlength']]
+            index += self.name_servers[i]['rdlength']
+
+        self.additional = []
+        if index >= len(data):
+            return
+        # parse answer resource record
+        for i in range(self.arcount):
+            self.additional.append({})
+            self.additional[i]['name'] = []
+
+            # NAME - a domain name to which this resource record pertains.
+            if len(data) < index:
+                raise MalformedFrameError()
+            index, self.additional[i]['name'] = DNSframe.parse_name(data, index)
+
+            # TYPE - two octets containing one of the RR type codes.  This
+            # field specifies the meaning of the data in the RDATA field.
+            if len(data) < index + 2:
+                raise MalformedFrameError()
+            self.additional[i]['type'] = int.from_bytes(data[index:index + 2], 'big')
+            index += 2
+
+            # CLASS - two octets which specify the class of the data in the RDATA field.
+            self.additional[i]['class'] = int.from_bytes(data[index: index + 2], 'big')
+            if len(data) < index + 2:
+                raise MalformedFrameError()
+            index += 2
+
+            # TTL - a 32 bit unsigned integer that specifies the time
+            # interval (in seconds) that the resource record may be
+            # cached before it should be discarded.  Zero values are
+            # interpreted to mean that the RR can only be used for the
+            # transaction in progress, and should not be cached.
+            if len(data) < index + 4:
+                raise MalformedFrameError()
+            self.additional[i]['ttl'] = int.from_bytes(data[index: index + 4], 'big')
+            index += 4
+
+            # RDLENGTH - an unsigned 16 bit integer that specifies the length in octets of the RDATA field.
+            if len(data) < index + 2:
+                raise MalformedFrameError()
+            self.additional[i]['rdlength'] = int.from_bytes(data[index: index + 2], 'big')
+            index += 2
+
+            # RDATA - a variable length string of octets that describes the
+            # resource.  The format of this information varies
+            # according to the TYPE and CLASS of the resource record.
+            # For example, the if the TYPE is A and the CLASS is IN,
+            # the RDATA field is a 4 octet ARPA Internet address.
+            if len(data) < index + self.additional[i]['rdlength']:
+                raise MalformedFrameError()
+            self.additional[i]['rdata'] = data[index: index + self.additional[i]['rdlength']]
+            index += self.additional[i]['rdlength']
+
     @staticmethod
     def parse_name(data, index):
         ans = []
         # REDUNDANT CHECK??
+        # IS IT THO?
         if index >= len(data):
             raise MalformedFrameError()
         cnt = data[index]
@@ -253,7 +361,7 @@ class DNSframe:
             frame += query['qtype'].to_bytes(2, 'big')
             frame += query['qclass'].to_bytes(2, 'big')
 
-        # RESOURCE RECORDS
+        # ANSWER RR
         for answer in self.answers:
             for label in answer['name']:
                 frame += len(label).to_bytes(1, 'big')
@@ -264,6 +372,30 @@ class DNSframe:
             frame += answer['ttl'].to_bytes(4, 'big')
             frame += answer['rdlength'].to_bytes(2, 'big')
             frame += answer['rdata']
+
+        # NAMESERVER RR
+        for ns in self.name_servers:
+            for label in ns['name']:
+                frame += len(label).to_bytes(1, 'big')
+                frame += label
+            frame += b'\x00'
+            frame += ns['type'].to_bytes(2, 'big')
+            frame += ns['class'].to_bytes(2, 'big')
+            frame += ns['ttl'].to_bytes(4, 'big')
+            frame += ns['rdlength'].to_bytes(2, 'big')
+            frame += ns['rdata']
+
+        # ADDITIONAL RR
+        for add in self.additional:
+            for label in add['name']:
+                frame += len(label).to_bytes(1, 'big')
+                frame += label
+            frame += b'\x00'
+            frame += add['type'].to_bytes(2, 'big')
+            frame += add['class'].to_bytes(2, 'big')
+            frame += add['ttl'].to_bytes(4, 'big')
+            frame += add['rdlength'].to_bytes(2, 'big')
+            frame += add['rdata']
 
         if include_len:
             return len(frame).to_bytes(2, 'big') + frame
@@ -277,21 +409,20 @@ class DNSserver:
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.verbose = verbose
-        self.connections = []
         self.cache = Cache()
 
     def start(self, port=53):
-        self.udp_socket.bind(('', port))
-        self.tcp_socket.bind(('', port))
+        self.udp_socket.bind(('127.0.0.1', port))
+        self.tcp_socket.bind(('127.0.0.1', port))
 
         udp_thread = threading.Thread(target=self.udp_listen)
         tcp_thread = threading.Thread(target=self.tcp_listen)
         udp_thread.start()
-        tcp_thread.start()
-
-        self.close()
+        #tcp_thread.start()
 
     def udp_listen(self):
+        if self.verbose:
+            print('[+]Started UDP listening thread')
         while True:
             data, addr = self.udp_socket.recvfrom(512)
             new_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -300,6 +431,8 @@ class DNSserver:
             time.sleep(0.1)
 
     def tcp_listen(self):
+        if self.verbose:
+            print('[+]Started TCP listening thread')
         self.tcp_socket.listen()
         while True:
             new_socket, addr = self.tcp_socket.accept()
@@ -316,6 +449,9 @@ class DNSserver:
                 while len(data) < data_len:
                     data += sockfd.recv(1024)
             query = DNSframe(data)
+            # TODO: REMOVE LINE BELOW AND SOLVE THE PROBLEM
+            # THE PROBLEM IS THAT THE OS SENDS ARCOUNT AS 1 WHEN THERE ARE NO RECORDS IN THE AR SECTION
+            # query.arcount = 0
 
             if self.verbose:
                 print('[+]Received from', addr, flush=True)
@@ -371,7 +507,7 @@ class DNSserver:
                 response.answers = [record_cache]
             else:
                 found_good_server = False
-                for server in self.cache.get_best_servers(20):
+                for server in self.cache.get_best_servers(1):
                     try:
                         # open connection to the server and send the request
                         forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -379,21 +515,20 @@ class DNSserver:
                         forward_socket.sendall(forward_request.to_bytes())
 
                         if self.verbose:
-                            print('[+]Recursive request sent', flush=True)
+                            print('[+]Querying ' + server + ' for ' + (b'.'.join(query.queries[0]['qname']).decode('utf8')), flush=True)
 
                         server_response = forward_socket.recv(1024)
-                        if self.verbose:
-                            print('[+]Recursive response received', flush=True)
-
                         server_response_size = int.from_bytes(server_response[:2], 'big')
                         server_response = server_response[2:]
                         while len(server_response) < server_response_size:
                             server_response += forward_socket.recv(1024)
-                            print('[+]Recursive response received', flush=True)
                         forward_socket.close()
+                        if self.verbose:
+                            print('[+]Recursive response received', flush=True)
 
                         # parse the response
                         response = DNSframe(server_response)
+
 
                         if forward_request.id != response.id:
                             if self.verbose:
@@ -413,9 +548,11 @@ class DNSserver:
                         found_good_server = True
                         break
                     except socket.error:
+                        print('[-]Failed to reach DNS server')
                         forward_socket.close()
                         continue
                     except MalformedFrameError:
+                        print(server_response)
                         if self.verbose:
                             print('[-]Uhm...looks like you forgot how to DNS: malformed frame from server', flush=True)
                         continue
@@ -462,7 +599,7 @@ class DNSserver:
             return
         except socket.error:
             if self.verbose:
-                print('[-]Error while receiving', flush=True)
+                print('[-]Error while receiving or sending', flush=True)
             return
         except MalformedFrameError:
             if self.verbose:
@@ -487,14 +624,7 @@ class DNSserver:
                 print('done', flush=True)
             return
 
-    def close(self, code=0):
-        if self.verbose:
-            print('[+]Joining threads and exiting...', flush=True)
-        for conn in self.connections:
-            conn.join(0.2)
-        exit(code)
-
 
 if __name__ == '__main__':
-    server = DNSserver()
-    server.start(port=12341)
+    dnsserver = DNSserver(verbose=True)
+    dnsserver.start(port=53)

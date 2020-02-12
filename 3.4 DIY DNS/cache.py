@@ -23,10 +23,8 @@ class Cache:
         self.cache_file = cache_file
 
         if not os.path.exists(cache_file):
-            # DOESN'T WORK ON WINDOWS
-            if not os.path.exists(cache_file):
-                with open(cache_file):
-                    pass
+            with open(cache_file, 'w+'):
+                pass
         else:
             with open(cache_file, 'rb') as f:
                 self.rr = pickle.load(f)
@@ -85,7 +83,7 @@ class Cache:
                 alive.append(t)
         self.threads = alive
 
-    def update_rtt_thread(self, timeout=120):
+    def update_rtt_thread(self, timeout=10):
         while True:
             self.update_rtt()
             time.sleep(timeout)
@@ -94,7 +92,7 @@ class Cache:
         if n < 1:
             return []
         if n == 1:
-            minimum = 0
+            minimum = 100000000
             ans = ''
             for ip in self.rtt:
                 if self.rtt[ip] < minimum:
@@ -128,6 +126,7 @@ class Cache:
         return '.'.join([x.decode('ascii') for x in text])
 
     def fetch_record(self, name):
+        return
         name = self.make_name(name)
         if name in self.rr:
             if self.rr[name][0] < time.time():
@@ -145,5 +144,3 @@ class Cache:
 
 if __name__ == '__main__':
     c = Cache()
-    c.add_record('12', 'sss', 12)
-    print(c.fetch_record('12'))
