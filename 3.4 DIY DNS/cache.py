@@ -126,6 +126,7 @@ class Cache:
         return '.'.join([x.decode('ascii') for x in text])
 
     def fetch_record(self, name):
+        # TODO: CACHE IS BROKEN; IT MIGHT SERVER BAD RECORDS
         return
         name = self.make_name(name)
         if name in self.rr:
