@@ -23,6 +23,7 @@ class Cache:
         self.cache_file = cache_file
 
         if not os.path.exists(cache_file):
+            # DOESN'T WORK ON WINDOWS
             os.mknod(cache_file)
         else:
             with open(cache_file, 'rb') as f:
