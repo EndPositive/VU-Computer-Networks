@@ -418,7 +418,7 @@ class DNSserver:
         udp_thread = threading.Thread(target=self.udp_listen)
         tcp_thread = threading.Thread(target=self.tcp_listen)
         udp_thread.start()
-        #tcp_thread.start()
+        tcp_thread.start()
 
     def udp_listen(self):
         if self.verbose:
