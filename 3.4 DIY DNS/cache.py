@@ -24,7 +24,9 @@ class Cache:
 
         if not os.path.exists(cache_file):
             # DOESN'T WORK ON WINDOWS
-            os.mknod(cache_file)
+            if not os.path.exists(cache_file):
+                with open(cache_file):
+                    pass
         else:
             with open(cache_file, 'rb') as f:
                 self.rr = pickle.load(f)

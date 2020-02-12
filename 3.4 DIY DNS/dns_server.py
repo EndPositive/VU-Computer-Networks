@@ -266,10 +266,7 @@ class DNSserver:
         self.cache = Cache()
 
     def start(self, timeout=None, port=53):
-        print(port)
         self.listen_socket.bind(('', port))
-        if self.verbose:
-            print('[+]Listening for connections', flush=True)
 
         start_time = time.time()
         while (timeout is None) or (time.time() - start_time < timeout):
@@ -376,7 +373,7 @@ class DNSserver:
                         forward_socket.sendall(forward_request.to_bytes())
 
                         if self.verbose:
-                            print('[-]Recursive request sent', flush=True)
+                            print('[+]Recursive request sent', flush=True)
 
                         server_response = forward_socket.recv(1024)
                         if self.verbose:
