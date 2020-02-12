@@ -5,6 +5,21 @@ from copy import deepcopy as cp
 from os import urandom
 from cache import Cache
 
+
+def send(sockfd, data, protocol, addr=None):
+    try:
+        if protocol == 'UDP':
+            if addr is None:
+                return False
+            else:
+                sockfd.sendto(data, addr)
+        else:
+            sockfd.sendall(len(data).to_bytes(2, 'big') + data)
+        return True
+    except socket.error:
+        return False
+
+
 class MalformedFrameError(Exception):
     def __init__(self, expression=None, message=None):
         self.expression = expression
@@ -259,62 +274,54 @@ class DNSserver:
     def __init__(self, verbose=True):
         if verbose:
             print('[+]Starting server...', flush=True)
-        self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.verbose = verbose
         self.connections = []
         self.cache = Cache()
 
-    def start(self, timeout=None, port=53):
-        self.listen_socket.bind(('', port))
+    def start(self, port=53):
+        self.udp_socket.bind(('', port))
+        self.tcp_socket.bind(('', port))
 
-        start_time = time.time()
-        while (timeout is None) or (time.time() - start_time < timeout):
-            self.listen()
-            time.sleep(0.1)
+        udp_thread = threading.Thread(target=self.udp_listen)
+        tcp_thread = threading.Thread(target=self.tcp_listen)
+        udp_thread.start()
+        tcp_thread.start()
 
         self.close()
 
-    def listen(self):
-        if self.verbose:
-            print('[+]Listening', flush=True)
+    def udp_listen(self):
+        while True:
+            data, addr = self.udp_socket.recvfrom(512)
+            new_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            t = threading.Thread(target=self.handle_conn, args=(new_socket, data, 'UDP', addr))
+            t.start()
+            time.sleep(0.1)
 
+    def tcp_listen(self):
+        self.tcp_socket.listen()
+        while True:
+            new_socket, addr = self.tcp_socket.accept()
+            t = threading.Thread(target=self.handle_conn, args=(new_socket, None, 'TCP', None))
+            t.start()
+            time.sleep(0.1)
+
+    def handle_conn(self, sockfd, data, protocol, addr=None):
         try:
-            # Receive any packet
-            data, addr = self.listen_socket.recvfrom(512)
+            # Receive packets with tcp connection
+            if protocol == 'TCP':
+                data = sockfd.recv(1024)
+                data_len = int.from_bytes(data[:2], 'big')
+                while len(data) < data_len:
+                    data += sockfd.recv(1024)
             query = DNSframe(data)
 
             if self.verbose:
                 print('[+]Received from', addr, flush=True)
 
-            # Check if that packet has been truncated
-            tc = query.tc
-            while tc == 1:
-                if self.verbose:
-                    print('[+]Query is truncated, finding more queries', flush=True)
-                dataTC, addrTC = self.listen_socket.recvfrom(512)
-
-                # Check if connection is still matching
-                if addr == addrTC:
-                    queryTC = DNSframe(data)
-
-                    # Check if id from the requests are still the same
-                    if query.id == queryTC.id:
-                        # Add the queries/answers to the main query
-                        query.qdcount += queryTC.qdcount
-                        query.queries.extend(queryTC.queries)
-                        query.ancount += queryTC.ancount
-                        query.answers.extend(queryTC.answers)
-                        tc = queryTC
-                    else:
-                        if self.verbose:
-                            print('[-]Query with another id found...', flush=True)
-                            raise MalformedFrameError
-                else:
-                    if self.verbose:
-                        print('[-]Query with another address found...', flush=True)
-
-            # if it is not a standard query send format err and exit
-            if query.qr != 0 or query.opcode != 0:
+            # if it is not a standard query or it is truncated send format err and exit
+            if query.qr != 0 or query.opcode != 0 or query.tc != 0:
                 if self.verbose:
                     print('[-]Frame is not a query', flush=True)
                 response = DNSframe()
@@ -328,7 +335,7 @@ class DNSserver:
                 # set to format error
                 response.rcode = 1
 
-                self.listen_socket.sendto(response.to_bytes(), addr)
+                send(sockfd, response.to_bytes(False), protocol, addr)
                 return
 
             # check if the frame contains more than 1 query and remove them if so
@@ -426,7 +433,7 @@ class DNSserver:
 
                     # set to server failure
                     response.rcode = 2
-                    self.listen_socket.sendto(response.to_bytes(), addr)
+                    send(sockfd, response.to_bytes(False), protocol, addr)
                     return
                 for answer in response.answers:
                     self.cache.add_record(answer)
@@ -447,7 +454,7 @@ class DNSserver:
             if self.verbose:
                 print('[+]Sending response')
             # send back the response
-            self.listen_socket.sendto(response.to_bytes(include_len=False), addr)
+            send(sockfd, response.to_bytes(False), protocol, addr)
 
             # close the connection and exit the thread
             if self.verbose:
@@ -472,7 +479,7 @@ class DNSserver:
             # set to format error
             response.rcode = 1
             try:
-                self.listen_socket.sendto(response.to_bytes(), addr)
+                send(sockfd, response.to_bytes(False), protocol, addr)
             except socket.error:
                 if self.verbose:
                     print('[-]Failed to send', flush=True)
