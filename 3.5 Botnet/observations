@@ -1,30 +1,23 @@
-server ip: 18.195.107.195
-client source & dest port: 45888
-server source & dest port: 5376
-protocol used: TCP
+(a) server ip: 18.195.107.195
+    client source & dest port: 45888
+    server source & dest port: 5376
 
-01. C: SYN
-02. S: SYN-ACK
-03. C: ACK
-04. C: REPORT botid=210d12e9413a4e1c os=linux <END>\n
-05. S: ACK
-06. S: HELLO 4ca49cfec8 <END>\n
-07. C: ACK
-08. C: UPDATE version=1.33.7 <END>\n
-09. S: UPDATE none <END>\n
-10. C: ACK
-11. C: COMMAND <END>\n
-12. S: COMMAND spam http://www.badware.com/spam.template <END>\n
-13: C: ACK
-14: C: DONE <END>\n
-15: S: BYE <END>\n
-16: C: ACK
-17: S: FIN-ACK
-18: C: ACK
-19: C: FIN-ACK
-20: S: ACK
+(b) protocol used: TCP
 
-MESSAGES
+(c) 1.33.7
+
+(d) spam, ddos, get_credentials, drop
+
+(e) The encryption algorithm used is RC4. The key used to produce the key schedule is the bot id. 
+EXAMPLE:
+cyphertext: 94 60 c8 d8 68 5b 72 c2 4e 7b 6d a7 18 e5 8a 08 66 50 22 5b 73 8d 81 a6 b9 7c 5b 06 5f 6a 63 73 4b 66 ee ee 7e f4 e8 a8 a4 5c 1a 2e a9 30 96 17 29 e2 45 c9 58 93 ce d0 d9 85 d1 fb 22 22 09 df 91 a4 58 1b 87 0b 16 bb 39 1f ed 87 5b 74 e7 0c 37 84 47 bb bd f3 2a 8e 72 08 81 45 8f df 39 e2 82 19
+key: 30 32 62 65 33 31 34 33 33 64 35 63 37 35 31 33
+plaintext: CREDENTIALS skype=(johndoe,P4ssw0rd) gmail=(johndoe@gmail.com,plzD0ntH4xxorMe) checksum=8e185c8c52
+We used https://cryptii.com/pipes/rc4-encryption in order to decrypt the message.
+
+(f) The payload represents a smiley bitmap image. We first did a base64 decode and then noticed that the first two bytes of the payload were similar to the bitmap used in sysarch. Add the .bmp extension and tadaa. You can also see a python script which does this for you: hidden.py
+
+PROTOCOL:
 04. C: REPORT botid=210d12e9413a4e1c os=linux <END>\n
 06. S: HELLO 4ca49cfec8 <END>\n
 08. C: UPDATE version=1.33.7 <END>\n
@@ -33,26 +26,6 @@ MESSAGES
 12. S: COMMAND spam http://www.badware.com/spam.template <END>\n
 14: C: DONE <END>\n
 15: S: BYE <END>\n
-
-OTHER COMMANDS
--get_credentials: will send "CREDENTIALS skype=(johndoe,P4ssw0rd) gmail=(johndoe@gmail.com,plzD0ntH4xxorMe) checksum=%s", checksum sent in the HELLO response
-The server checks the message (probably decrypts it), but does not care about the checksum.
-It is encrypted with XOR encryption as follows:
-enc:
-key=KDF(bot_id)
-uvar2 = key[160]
-uvar3 = key[161]
-# both the above values should be 0 after KDF
-for (i in (0, len)):
-	uvar2++
-	uvar3 += key[uvar2]
-	swap(key[uvar2], key[uvar3]);
-	cyphertext[i] = key[key[uvar2]+key[uvar3]] ^ plaintext[i]
-key[160] = uvar2
-key[161] = uvar3
-
--hidden: will send a base64 encoded BMP image of a smiley face.
-
 
 
 

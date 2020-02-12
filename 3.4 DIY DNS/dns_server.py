@@ -134,11 +134,10 @@ class DNSframe:
             self.queries[i]['qclass'] = int.from_bytes(data[index: index + 2], 'big')
             index += 2
 
+        self.answers = []
         if index >= len(data):
             return
         # parse resource record AKA answer
-        self.answers = []
-        # DOESN'T RETURN???
         for i in range(self.ancount):
             self.answers.append({})
             self.answers[i]['name'] = []
@@ -335,7 +334,7 @@ class DNSserver:
             # check if the frame contains more than 1 query and remove them if so
             # do this because it makes things simple, and because nobody on the planet implements it
             # WHY IS IT EVEN IN THE SPECIFICATION HONESTLY
-            for i in range(1, len(query.queries)):
+            for i in range(len(query.queries),1):
                 del query.queries[i]
             query.qdcount = 1
 
