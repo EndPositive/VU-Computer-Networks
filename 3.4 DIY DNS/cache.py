@@ -10,24 +10,16 @@ self.rr['google.com'] = [time this entry expires, [answer field from the dns fra
 self.rtt['google.com'] = time to google.com
 '''
 class Cache:
-    def __init__(self, server_file='nl.txt', cache_file=None):
+    def __init__(self, server_file='nl.txt'):
         with open(server_file, 'r') as f:
             self.servers = f.read().split('\n')
 
         self.rtt = {}
         self.rr = {}
+        self.cache_file = 'cache.pickle'
 
-        if cache_file is None:
-            cache_file = 'cache.pickle'
-
-        self.cache_file = cache_file
-
-        if not os.path.exists(cache_file):
-            with open(cache_file, 'w+'):
-                pass
-        else:
-            with open(cache_file, 'rb') as f:
-                self.rr = pickle.load(f)
+        with open(cache_file, 'w+'):
+            pass
 
         # variables for rtt_thread
         self.done = {}
