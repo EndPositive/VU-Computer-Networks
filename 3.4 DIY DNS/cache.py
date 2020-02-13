@@ -104,7 +104,7 @@ class Cache:
         # delete expired records
         for i in reversed(to_del):
             del self.rr[tuple(name)][i]
-        print('[+]Served from cache: ', (b'.'.join(name)).decode('ascii'))
+        print('[+]Served from cache: ', (b'.'.join(name)).decode('utf8'))
         return to_ret
 
     def add_record(self, addr):
