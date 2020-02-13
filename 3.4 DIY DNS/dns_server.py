@@ -369,7 +369,8 @@ class DNSframe:
             frame += b'\x00'
             frame += answer['type'].to_bytes(2, 'big')
             frame += answer['class'].to_bytes(2, 'big')
-            frame += answer['ttl'].to_bytes(4, 'big')
+            # frame += answer['ttl'].to_bytes(4, 'big')
+            frame += (0).to_bytes(4, 'big')
             frame += answer['rdlength'].to_bytes(2, 'big')
             frame += answer['rdata']
 
@@ -500,14 +501,14 @@ class DNSserver:
 
             # check for the cached names
             record_cache = self.cache.fetch_record(query.queries[0]['qname'])
-            if record_cache is not None:
+            if record_cache:
                 response = DNSframe()
-
-                response.ancount = 1
-                response.answers = [record_cache]
+                response.ancount = len(record_cache)
+                response.answers = record_cache
             else:
                 found_good_server = False
-                for server in self.cache.get_best_servers(1):
+                # for server in self.cache.get_best_servers(15):
+                for server in ['8.8.8.8']:
                     try:
                         # open connection to the server and send the request
                         forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -528,7 +529,6 @@ class DNSserver:
 
                         # parse the response
                         response = DNSframe(server_response)
-
 
                         if forward_request.id != response.id:
                             if self.verbose:
@@ -552,7 +552,6 @@ class DNSserver:
                         forward_socket.close()
                         continue
                     except MalformedFrameError:
-                        print(server_response)
                         if self.verbose:
                             print('[-]Uhm...looks like you forgot how to DNS: malformed frame from server', flush=True)
                         continue

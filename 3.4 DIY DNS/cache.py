@@ -25,35 +25,12 @@ class Cache:
         self.done = {}
         self.threads = []
 
-        # start the update threads
-        rr_thread = threading.Thread(target=self.update_rr_thread)
-        rr_thread.daemon = True
-        rr_thread.start()
-
         rtt_thread = threading.Thread(target=self.update_rtt_thread)
         rtt_thread.daemon = True
         rtt_thread.start()
 
         # sleep to allow the threads to make some requests to the servers
         time.sleep(0.5)
-
-
-    def update_rr(self):
-        to_delete = []
-        for record in self.rr:
-            if self.rr[record][0] < time.time():
-                to_delete.append(record)
-
-        for record in to_delete:
-            del self.rr[record]
-
-        with open(self.cache_file, 'wb') as f:
-            pickle.dump(self.rr, f)
-
-    def update_rr_thread(self, timeout=60):
-        while True:
-            self.update_rr()
-            time.sleep(timeout)
 
     def update_rtt(self):
         for ip in self.servers:
@@ -115,13 +92,13 @@ class Cache:
 
     def fetch_record(self, name):
         if tuple(name) not in self.rr:
-            return
+            return []
         to_ret = []
         to_del = []
         # iterate over records
         for i, record in enumerate(self.rr[tuple(name)]):
             # check ttl
-            ttl = record['ttl'] - time.time()
+            ttl = int(record['ttl'] - time.time())
             if ttl < 0:
                 to_del.append(i)
                 continue
@@ -133,14 +110,16 @@ class Cache:
         # delete expired records
         for i in reversed(to_del):
             del self.rr[tuple(name)][i]
+        print('[+]Served from cache: ', (b'.'.join(name)).decode('ascii'))
         return to_ret
 
     def add_record(self, addr):
-        addr['ttl'] += time.time()
-        record = tuple(addr['name'])
+        # 500.000 seconds is almost one week
+        if addr['ttl'] > 500000:
+            return
+        to_add = cp(addr)
+        to_add['ttl'] += time.time()
+        record = tuple(to_add['name'])
         if record not in self.rr:
             self.rr[record] = []
-        self.rr[record].append(addr)
-
-if __name__ == '__main__':
-    c = Cache()
+        self.rr[record].append(to_add)
