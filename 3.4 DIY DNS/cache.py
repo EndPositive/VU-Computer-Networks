@@ -1,8 +1,6 @@
-import pickle
 import time
 import socket
 import threading
-import os
 from copy import deepcopy as cp
 
 '''
@@ -16,10 +14,6 @@ class Cache:
 
         self.rtt = {}
         self.rr = {}
-        self.cache_file = 'cache.pickle'
-
-        with open(self.cache_file, 'w+'):
-            pass
 
         # variables for rtt_thread
         self.done = {}
