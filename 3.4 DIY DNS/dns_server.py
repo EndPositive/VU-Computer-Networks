@@ -572,7 +572,12 @@ class DNSserver:
                     send(sockfd, response.to_bytes(False), protocol, addr)
                     return
                 for answer in response.answers:
-                    self.cache.add_record(answer)
+                    if answer['name'] == query.queries[0]['qname']:
+                        self.cache.add_record(answer)
+                    else:
+                        print("WTF")
+                        print(answer['name'])
+                        print(query.queries[0]['qname'])
 
             if self.verbose:
                 print('[+]Preparing response')
