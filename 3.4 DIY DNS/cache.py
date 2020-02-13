@@ -6,7 +6,7 @@ import os
 from copy import deepcopy as cp
 
 '''
-self.rr['google.com'] = [time this entry expires, [answer field from the dns frame]]
+self.rr['google.com'] = [list of answers]
 self.rtt['google.com'] = time to google.com
 '''
 class Cache:
@@ -113,27 +113,34 @@ class Cache:
         except:
             self.rtt[ip] = 100000000
 
-    @staticmethod
-    def make_name(text):
-        return '.'.join([x.decode('ascii') for x in text])
-
     def fetch_record(self, name):
-        # TODO: CACHE IS BROKEN; IT MIGHT SERVER BAD RECORDS
-        return
-        name = self.make_name(name)
-        if name in self.rr:
-            if self.rr[name][0] < time.time():
-                del self.rr[name]
-                return
-            to_ret = cp(self.rr[name][1])
-            to_ret['ttl'] = int(self.rr[name][0] - time.time())
-            print('[+]Served ', to_ret['name'], ' from cache')
-            return to_ret
-        return
+        if tuple(name) not in self.rr:
+            return
+        to_ret = []
+        to_del = []
+        # iterate over records
+        for i, record in enumerate(self.rr[tuple(name)]):
+            # check ttl
+            ttl = record['ttl'] - time.time()
+            if ttl < 0:
+                to_del.append(i)
+                continue
+            # copy and set the new ttl
+            curr_record = cp(record)
+            curr_record['ttl'] = ttl
+            to_ret.append(curr_record)
+
+        # delete expired records
+        for i in reversed(to_del):
+            del self.rr[tuple(name)][i]
+        return to_ret
 
     def add_record(self, addr):
-        name = '.'.join([x.decode('ascii') for x in addr['name']])
-        self.rr[name] = [addr['ttl'] + time.time(), addr]
+        addr['ttl'] += time.time()
+        record = tuple(addr['name'])
+        if record not in self.rr:
+            self.rr[record] = []
+        self.rr[record].append(addr)
 
 if __name__ == '__main__':
     c = Cache()

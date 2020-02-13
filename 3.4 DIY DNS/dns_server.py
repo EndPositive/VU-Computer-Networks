@@ -451,7 +451,7 @@ class DNSserver:
             query = DNSframe(data)
             # TODO: REMOVE LINE BELOW AND SOLVE THE PROBLEM
             # THE PROBLEM IS THAT THE OS SENDS ARCOUNT AS 1
-            query.arcount = 0
+            # query.arcount = 0
 
             if self.verbose:
                 print('[+]Received from', addr, flush=True)
@@ -537,7 +537,7 @@ class DNSserver:
 
                         if response.rcode != 0:
                             if self.verbose:
-                                print('[-]Received error code from the server', flush=True)
+                                print('[-]Received error code from the server: ' + str(response.rcode), flush=True)
                             continue
 
                         if response.qr != 1:
