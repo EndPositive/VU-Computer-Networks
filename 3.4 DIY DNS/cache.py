@@ -18,7 +18,7 @@ class Cache:
         self.rr = {}
         self.cache_file = 'cache.pickle'
 
-        with open(cache_file, 'w+'):
+        with open(self.cache_file, 'w+'):
             pass
 
         # variables for rtt_thread
