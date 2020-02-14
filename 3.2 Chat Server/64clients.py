@@ -1,6 +1,8 @@
 import socket
 import random
 import string
+import threading
+import time
 
 def randomString(stringLength=10):
     letters = string.ascii_lowercase
@@ -32,7 +34,7 @@ def receive(conn, size):
 
 class ChatClient:
     def __init__(self):
-        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sockfd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         self.Quit = False
         self.__Wait = 0
@@ -40,7 +42,7 @@ class ChatClient:
         self.name = ""
 
     def start(self):
-        self.__socket.connect(('127.0.0.1', 65432))
+        self.sockfd.connect(('127.0.0.1', 65432))
         if self.__connect():
             print("CONNECTED")
         else:
@@ -50,8 +52,8 @@ class ChatClient:
     def __connect(self):
         name = randomString(10)
         print("Connection ", name)
-        if send(self.__socket, 'HELLO-FROM ' + name + '\n'):
-            res = receive(self.__socket, 4096)
+        if send(self.sockfd, 'HELLO-FROM ' + name + '\n'):
+            res = receive(self.sockfd, 4096)
             if res:
                 spl = res.split()
                 if spl[0] == "IN-USE":
@@ -69,15 +71,28 @@ class ChatClient:
         return False
 
     def close(self, code=0):
-        self.__socket.close()
+        self.sockfd.close()
+
+
+def spam(client, msg):
+    while True:
+        send(client.sockfd, msg)
+        time.sleep(0.5)
 
 
 if __name__ == '__main__':
     clients = []
-    for i in range(0, 100):
+    n_clients = 62
+    for i in range(n_clients):
+        print(i)
         chatClient = ChatClient()
         chatClient.start()
         clients.append(chatClient)
-        print(i)
+
+    for i in range(n_clients):
+        t = threading.Thread(target=spam, args=(clients[i], 'SEND echobot x\n'))
+        t.daemon = True
+        t.start()
+
     while True:
         pass
