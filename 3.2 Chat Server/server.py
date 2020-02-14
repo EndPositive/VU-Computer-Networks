@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 
 
 def send(conn, msg):
@@ -100,6 +101,7 @@ class ChatServer:
                 else:
                     msg = "BAD-RQST-HDR\n"
                 print("OUT: ", msg)
+                time.sleep(0.5)
                 if not send(conn, msg):
                     disconnect = True
             else:
