@@ -79,7 +79,6 @@ class ChatServer:
                         msg = "IN-USE"
                         disconnect = True
                 elif spl[0] == "WHO":
-
                     msg = "WHO-OK " + ",".join(self.getNames()) + "\n"
                 elif spl[0] == "SEND":
                     if len(spl) < 3:
@@ -87,12 +86,14 @@ class ChatServer:
                     elif self.online(spl[1]):
                         if spl[1] == "echobot":
                             if send(conn, "SEND-OK\n"):
+                                time.sleep(0.5)
                                 msg = "DELIVERY echobot " + " ".join(spl[2:]) + "\n"
                             else:
                                 disconnect = True
                         else:
                             to = self.online(spl[1])[0]
                             if send(to, "DELIVERY " + name + " " + " ".join(spl[2:]) + "\n"):
+                                time.sleep(0.5)
                                 msg = "SEND-OK\n"
                             else:
                                 disconnect = True
@@ -101,7 +102,6 @@ class ChatServer:
                 else:
                     msg = "BAD-RQST-HDR\n"
                 print("OUT: ", msg)
-                time.sleep(0.5)
                 if not send(conn, msg):
                     disconnect = True
             else:
