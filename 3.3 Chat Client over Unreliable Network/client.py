@@ -4,7 +4,6 @@ import threading
 
 def send(conn, msg):
     try:
-        print(b"SEND: " + msg.encode('utf-8'))
         conn.sendall(msg.encode('utf-8'))
         return True
     except socket.error:
@@ -21,7 +20,6 @@ def receive(conn, size):
                 data += conn.recv(size)
                 if not data:
                     break
-            print(b"RECV: " + data)
             return data.decode("utf-8")
     except socket.error:
         return False
@@ -51,86 +49,94 @@ class ChatClient:
             self.close()
 
     def __connect(self):
-        print("Username:")
+        print("Username: ", end="", flush=True)
         name = input()
-        if name:
-            if send(self.__socket, 'HELLO-FROM ' + name + '\n'):
-                res = receive(self.__socket, 4096)
-                if res:
-                    spl = res.split()
-                    if spl[0] == "IN-USE":
-                        print("Username already in use.")
-                        return self.__connect()
-                    elif spl[0] == "BUSY":
-                        print("Server is busy.")
-                    elif spl[0] == "HELLO":
-                        self.name = name
-                        print("Connected.")
-                        return True
-                else:
-                    print("Something went wrong.")
-        else:
+        if not name:
             return self.__connect()
-        print("Disconnecting from host...")
-        return False
+
+        if not send(self.__socket, 'HELLO-FROM ' + name + '\n'):
+            return False
+
+        res = receive(self.__socket, 4096)
+        if not res:
+            return False
+
+        spl = res.split()
+        if spl[0] == "IN-USE":
+            print("Username already in use.")
+            return self.__connect()
+        elif spl[0] == "BUSY":
+            print("Server is busy.")
+            return False
+        elif spl[0] == "HELLO":
+            self.name = name
+            print("Connected.")
+            return True
+        else:
+            return False
 
     def __push(self):
         while True and not self.Quit:
-            if self.__Wait == 0:
-                print("\nCommand:")
-                inp = input()
-                if inp:
-                    spl = inp.split()
-                    if spl[0] == "!quit":
-                        self.Quit = True
-                    elif spl[0] == "!who":
-                        self.__Wait = 1
-                        if not send(self.__socket, 'WHO\n'):
-                            print("Something went wrong.\nDisconnecting from host...")
-                            self.Quit = True
-                    elif inp[0] == "@":
-                        user = spl[0][1:]
-                        msg = " ".join(spl[1:])
-                        if user == "echobot" or user == self.name:
-                            self.__Wait = 2
-                        else:
-                            self.__Wait = 1
-                        if not send(self.__socket, "SEND " + user + " " + msg + "\n"):
-                            print("Something went wrong.\nDisconnecting from host...")
-                            self.Quit = True
-                    else:
-                        self.__Wait = 1
-                        send(self.__socket, inp + "\n")
+            if not self.__Wait == 0:
+                continue
+
+            print("\n<" + self.name + ">: ", end="", flush=True)
+            inp = input()
+            if not inp:
+                continue
+
+            spl = inp.split()
+            if spl[0] == "!quit":
+                break
+            elif spl[0] == "!who":
+                self.__Wait = 1
+                if not send(self.__socket, 'WHO\n'):
+                    break
+            elif inp[0] == "@":
+                user = spl[0][1:]
+                msg = " ".join(spl[1:])
+                if user == self.name:
+                    self.__Wait = 2
+                else:
+                    self.__Wait = 1
+                if not send(self.__socket, "SEND " + user + " " + msg + "\n"):
+                    break
+            else:
+                self.__Wait = 1
+                send(self.__socket, inp + "\n")
         self.close()
 
     def __pull(self):
         while True and not self.Quit:
             res = receive(self.__socket, 4096)
-            if res:
-                spl = res.split()
-                print('\x1b[1A' + '\x1b[2K' + '\x1b[1A')
-                if spl[0] == "WHO-OK":
-                    print("Online users: ", ",".join(spl[1:]))
-                elif spl[0] == "SEND-OK":
-                    print("Message successfully sent.")
-                elif spl[0] == "UNKNOWN":
-                    print("User is not online.")
-                elif spl[0] == "DELIVERY":
-                    print("Received msg from " + spl[1] + ": ", " ".join(spl[2:]))
-                elif spl[0] == "BAD-RQST-HDR":
-                    pass
-                elif spl[0] == "BAD-RQST-BODY":
-                    print("Bad parameters")
-                else:
-                    print("Unknown error")
+            if not res:
+                break
 
+            spl = res.split()
+            print('\x1b[1A' + '\x1b[2K' + '\x1b[1A')
+            if spl[0] == "WHO-OK":
+                print("Online users: ", ",".join(spl[1:]))
+            elif spl[0] == "SEND-OK":
+                print("Message successfully sent.")
                 self.__Wait -= 1
+                continue
+            elif spl[0] == "UNKNOWN":
+                print("User is not online.")
+            elif spl[0] == "DELIVERY":
+                print("<" + spl[1] + ">:", " ".join(spl[2:]))
+                self.__Wait -= 1
+                continue
+            elif spl[0] == "BAD-RQST-HDR":
+                print("Bad parameters")
+            elif spl[0] == "BAD-RQST-BODY":
+                print("Bad parameters")
             else:
-                print("Something went wrong, disconnected from host.")
-                self.Quit = True
+                print(res)
+            self.__Wait = 0
         self.close()
 
     def close(self, code=0):
+        self.Quit = True
         self.__socket.close()
         exit(code)
 

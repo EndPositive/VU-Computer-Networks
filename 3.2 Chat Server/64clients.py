@@ -1,6 +1,9 @@
 import socket
 import random
 import string
+import threading
+import time
+
 
 def randomString(stringLength=10):
     letters = string.ascii_lowercase
@@ -21,7 +24,7 @@ def receive(conn, size):
         if not data:
             return False
         else:
-            while not data[-1:] == b'\n':
+            while b'\n' not in data[-1:]:
                 data += conn.recv(size)
                 if not data:
                     break
@@ -32,52 +35,52 @@ def receive(conn, size):
 
 class ChatClient:
     def __init__(self):
-        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        self.Quit = False
-        self.__Wait = 0
-
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.name = ""
 
     def start(self):
-        self.__socket.connect(('127.0.0.1', 65432))
-        if self.__connect():
-            print("CONNECTED")
-        else:
-            print("ABORT")
+        self.socket.connect(('127.0.0.1', 65432))
+        if not self.__connect():
             self.close()
 
     def __connect(self):
-        name = randomString(10)
+        name = randomString()
         print("Connection ", name)
-        if send(self.__socket, 'HELLO-FROM ' + name + '\n'):
-            res = receive(self.__socket, 4096)
+        if send(self.socket, 'HELLO-FROM ' + name + '\n'):
+            res = receive(self.socket, 4096)
             if res:
                 spl = res.split()
-                if spl[0] == "IN-USE":
-                    print("Username already in use.")
-                    return self.__connect()
-                elif spl[0] == "BUSY":
-                    print("Server is busy.")
-                elif spl[0] == "HELLO":
+                if spl[0] == "HELLO":
                     self.name = name
-                    print("Connected.")
                     return True
-            else:
-                print("Something went wrong.")
-        print("Disconnecting from host...")
+        print("Something went wrong.\nDisconnecting from host...")
         return False
 
-    def close(self, code=0):
-        self.__socket.close()
+    def close(self):
+        self.socket.close()
+
+
+def spam(client, msg):
+    while True:
+        if not send(client.socket, msg):
+            break
+        time.sleep(0.5)
+    print("BIG PROBLEM")
 
 
 if __name__ == '__main__':
     clients = []
-    for i in range(0, 100):
+    n_clients = 62
+    for i in range(n_clients):
+        print(str(i) + ": ", end="", flush=True)
         chatClient = ChatClient()
         chatClient.start()
         clients.append(chatClient)
-        print(i)
+
+    for i in range(n_clients):
+        t = threading.Thread(target=spam, args=(clients[i], 'SEND echobot Hi, its me: ' + clients[i].name + '\n'))
+        t.daemon = True
+        t.start()
+
     while True:
         pass
