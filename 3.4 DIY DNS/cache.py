@@ -2,9 +2,10 @@ import time
 import socket
 import threading
 from copy import deepcopy as cp
+from dns_frame import DNSframe
 
 '''
-self.rr['google.com'] = [list of answers]
+self.rr['google.com'][type] = [list of answers]
 self.rtt['google.com'] = time to google.com
 '''
 class Cache:
@@ -84,13 +85,25 @@ class Cache:
         except:
             self.rtt[ip] = 100000000
 
-    def fetch_record(self, name):
-        if tuple(name) not in self.rr:
+    def get_cname(self, query):
+        # if query already is asking for cname exit
+        if query['qtype'] == 5:
+            return
+
+        # if there is no record of that in the cache, exit
+        if 5 not in self.rr or tuple(query['qname']) not in self.rr[5]:
+            return
+
+        _, ret = DNSframe.parse_name(self.rr[5][tuple(query['qname'])][0]['rdata'], 0)
+        return ret
+
+    def fetch_record(self, query):
+        if query['qtype'] not in self.rr or tuple(query['qname']) not in self.rr[query['qtype']]:
             return []
         to_ret = []
         to_del = []
         # iterate over records
-        for i, record in enumerate(self.rr[tuple(name)]):
+        for i, record in enumerate(self.rr[query['qtype']][tuple(query['qname'])]):
             # check ttl
             ttl = int(record['ttl'] - time.time())
             if ttl < 0:
@@ -103,8 +116,8 @@ class Cache:
 
         # delete expired records
         for i in reversed(to_del):
-            del self.rr[tuple(name)][i]
-        print('[+]Served from cache: ', (b'.'.join(name)).decode('utf8'))
+            del self.rr[query['qtype']][tuple(query['qname'])][i]
+        print('[+]Cache for', (b'.'.join(query['qname'])).decode('utf8'), ':', to_ret)
         return to_ret
 
     def add_record(self, addr):
@@ -114,6 +127,18 @@ class Cache:
         to_add = cp(addr)
         to_add['ttl'] += time.time()
         record = tuple(to_add['name'])
-        if record not in self.rr:
-            self.rr[record] = []
-        self.rr[record].append(to_add)
+        record_type = addr['type']
+
+        if record_type not in self.rr:
+            self.rr[record_type] = {}
+
+        # type 5 is cname
+        if record not in self.rr[record_type] or to_add['type'] == 5:
+            self.rr[record_type][record] = []
+
+        exists = None
+        for i, x in enumerate(self.rr[record_type][record]):
+            if x['name'] == to_add['name']:
+                del self.rr[record_type][record][i]
+                break
+        self.rr[record_type][record].append(to_add)

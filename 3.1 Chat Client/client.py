@@ -41,7 +41,8 @@ class ChatClient:
         self.name = ""
 
     def start(self):
-        self.__socket.connect(('18.195.107.195', 5378))
+        # self.__socket.connect(('18.195.107.195', 5378))
+        self.__socket.connect(('127.0.0.1', 65432))
         if self.__connect():
             self.__pushThread.start()
             self.__pullThread.start()

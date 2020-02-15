@@ -40,7 +40,7 @@ class ChatServer:
         while True:
             conn, addr = self.__socket.accept()
             self.connections.append([conn, addr, ""])
-            pullThread = threading.Thread(target=self.__pull, args=([conn, addr, ""]))
+            pullThread = threading.Thread(target=self.__pull, args=(conn, addr, ""))
             pullThread.setDaemon(True)
             pullThread.start()
 
@@ -57,6 +57,7 @@ class ChatServer:
         return names
 
     def __pull(self, conn, addr, name):
+        print(conn, addr, name)
         disconnect = False
         while True and not disconnect:
             res = receive(conn, 4096)
