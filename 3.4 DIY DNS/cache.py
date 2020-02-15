@@ -2,7 +2,6 @@ import time
 import socket
 import threading
 from copy import deepcopy as cp
-from dns_frame import DNSframe
 
 '''
 self.rr['google.com'][type] = [list of answers]
