@@ -22,22 +22,26 @@ def send(sockfd, data, protocol, addr=None):
 
 
 class DNSserver:
-    def __init__(self, verbose=True):
+    def __init__(self, verbose=True, use_multithreading=True):
         if verbose:
             print('[+]Starting server...', flush=True)
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.verbose = verbose
+        self.multithreaded = use_multithreading
         self.cache = Cache()
 
     def start(self, port=53):
         self.udp_socket.bind(('127.0.0.1', port))
         self.tcp_socket.bind(('127.0.0.1', port))
 
-        udp_thread = threading.Thread(target=self.udp_listen)
-        tcp_thread = threading.Thread(target=self.tcp_listen)
-        udp_thread.start()
-        tcp_thread.start()
+        if self.multithreaded:
+            udp_thread = threading.Thread(target=self.udp_listen)
+            tcp_thread = threading.Thread(target=self.tcp_listen)
+            udp_thread.start()
+            tcp_thread.start()
+        else:
+            self.udp_listen()
 
     def udp_listen(self):
         if self.verbose:
@@ -45,9 +49,12 @@ class DNSserver:
         while True:
             data, addr = self.udp_socket.recvfrom(512)
             new_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            t = threading.Thread(target=self.handle_conn, args=(new_socket, data, 'UDP', addr))
-            t.start()
-            time.sleep(0.1)
+            if self.multithreaded:
+                t = threading.Thread(target=self.handle_conn, args=(new_socket, data, 'UDP', addr))
+                t.start()
+                time.sleep(0.1)
+            else:
+                self.handle_conn(new_socket, data, 'UDP', addr)
 
     def tcp_listen(self):
         if self.verbose:
@@ -55,9 +62,12 @@ class DNSserver:
         self.tcp_socket.listen()
         while True:
             new_socket, addr = self.tcp_socket.accept()
-            t = threading.Thread(target=self.handle_conn, args=(new_socket, None, 'TCP', None))
-            t.start()
-            time.sleep(0.1)
+            if self.multithreaded:
+                t = threading.Thread(target=self.handle_conn, args=(new_socket, None, 'TCP', None))
+                t.start()
+                time.sleep(0.1)
+            else:
+                self.handle_conn(new_socket, None, 'TCP', addr)
 
     def handle_conn(self, sockfd, data, protocol, addr=None):
         try:
@@ -97,9 +107,6 @@ class DNSserver:
                 del query.queries[i]
             query.qdcount = 1
 
-            if self.verbose:
-                print('[+]Making recursive call', flush=True)
-
             # make packet to send from the query
             forward_request = cp(query)
 
@@ -126,13 +133,14 @@ class DNSserver:
                 # try and get the cname of the query if we have it in the cache
                 cname = self.cache.get_cname(query.queries[0])
                 res = None
-                while cname is not None:
+                while cname is not None and query.queries[0]['qtype'] != 5:
                     res = cname
-                    cname = self.cache.get_cname(query.queries[0])
-
+                    cname = self.cache.get_cname(cname)
                 if res is not None:
                     forward_request.queries[0]['qname'] = res
 
+                if self.verbose:
+                    print('[+]Making recursive call', flush=True)
                 # for server in self.cache.get_best_servers(15):
                 for server in ['8.8.8.8']:
                     try:
@@ -174,7 +182,7 @@ class DNSserver:
                         found_good_server = True
                         break
                     except socket.error:
-                        print('[-]Failed to reach DNS server')
+                        print('[-]Failed to reach DNS server', flush=True)
                         forward_socket.close()
                         continue
                     except MalformedFrameError:
@@ -205,20 +213,14 @@ class DNSserver:
                         self.cache.add_record(answer)
 
                     if answer['type'] != query.queries[0]['qtype']:
-                        # print('deleted', response.answers[i])
                         del response.answers[i]
                         continue
 
                     # change the name to the one in the query
                     response.answers[i]['name'] = query.queries[0]['qname']
 
-                # print(response.answers)
-
-                # if the name in the answer doesn't match the name in the query
-                # search in cache for cname of the
-
             if self.verbose:
-                print('[+]Preparing response')
+                print('[+]Preparing response', flush=True)
 
             # set the id to the one that was given in the request
             response.id = query.id
@@ -234,13 +236,13 @@ class DNSserver:
             response.ancount = len(response.answers)
 
             if self.verbose:
-                print('[+]Sending response')
+                print('[+]Sending response', flush=True)
             # send back the response
             send(sockfd, response.to_bytes(False), protocol, addr)
 
             # close the connection and exit the thread
             if self.verbose:
-                print('[+]Connection closed')
+                print('[+]Connection closed', flush=True)
             return
         except socket.error:
             if self.verbose:

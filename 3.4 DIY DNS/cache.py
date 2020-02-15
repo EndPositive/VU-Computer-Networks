@@ -85,17 +85,13 @@ class Cache:
         except:
             self.rtt[ip] = 100000000
 
-    def get_cname(self, query):
-        # if query already is asking for cname exit
-        if query['qtype'] == 5:
-            return
-
+    def get_cname(self, name):
         # if there is no record of that in the cache, exit
-        if 5 not in self.rr or tuple(query['qname']) not in self.rr[5]:
+        if 5 not in self.rr or tuple(name) not in self.rr[5]:
             return
 
-        _, ret = DNSframe.parse_name(self.rr[5][tuple(query['qname'])][0]['rdata'], 0)
-        return ret
+        print('we are ready to return', flush=True)
+        return self.rr[5][tuple(name)][0]['rdata']
 
     def fetch_record(self, query):
         if query['qtype'] not in self.rr or tuple(query['qname']) not in self.rr[query['qtype']]:
@@ -117,7 +113,7 @@ class Cache:
         # delete expired records
         for i in reversed(to_del):
             del self.rr[query['qtype']][tuple(query['qname'])][i]
-        print('[+]Cache for', (b'.'.join(query['qname'])).decode('utf8'), ':', to_ret)
+        print('[+]Cache for', (b'.'.join(query['qname'])).decode('utf8'))
         return to_ret
 
     def add_record(self, addr):

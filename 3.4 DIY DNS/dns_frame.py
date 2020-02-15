@@ -132,9 +132,7 @@ class DNSframe:
             index += 2
 
         self.answers = []
-        if index >= len(data):
-            return
-        # parse answer resource record
+        # parse answer resource records
         for i in range(self.ancount):
             self.answers.append({})
             self.answers[i]['name'] = []
@@ -180,13 +178,16 @@ class DNSframe:
             # the RDATA field is a 4 octet ARPA Internet address.
             if len(data) < index + self.answers[i]['rdlength']:
                 raise MalformedFrameError()
-            self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
+
+            # 5 is cname
+            if self.answers[i]['type'] != 5:
+                self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
+            else:
+                _, self.answers[i]['rdata'] = self.parse_name(data, index)
             index += self.answers[i]['rdlength']
 
         self.name_servers = []
-        if index >= len(data):
-            return
-        # parse answer resource record
+        # parse name server records
         for i in range(self.nscount):
             self.name_servers.append({})
             self.name_servers[i]['name'] = []
@@ -232,13 +233,16 @@ class DNSframe:
             # the RDATA field is a 4 octet ARPA Internet address.
             if len(data) < index + self.name_servers[i]['rdlength']:
                 raise MalformedFrameError()
-            self.name_servers[i]['rdata'] = data[index: index + self.name_servers[i]['rdlength']]
+
+            # 5 is cname
+            if self.name_servers[i]['type'] != 5:
+                self.name_servers[i]['rdata'] = data[index: index + self.name_servers[i]['rdlength']]
+            else:
+                _, self.name_servers[i]['rdata'] = self.parse_name(data, index)
             index += self.name_servers[i]['rdlength']
 
         self.additional = []
-        if index >= len(data):
-            return
-        # parse answer resource record
+        # parse additional records
         for i in range(self.arcount):
             self.additional.append({})
             self.additional[i]['name'] = []
@@ -284,16 +288,18 @@ class DNSframe:
             # the RDATA field is a 4 octet ARPA Internet address.
             if len(data) < index + self.additional[i]['rdlength']:
                 raise MalformedFrameError()
-            self.additional[i]['rdata'] = data[index: index + self.additional[i]['rdlength']]
+            # 5 is cname
+            if self.additional[i]['type'] != 5:
+                self.additional[i]['rdata'] = data[index: index + self.additional[i]['rdlength']]
+            else:
+                _, self.additional[i]['rdata'] = self.parse_name(data, index)
             index += self.additional[i]['rdlength']
 
     @staticmethod
     def parse_name(data, index):
-        ans = []
-        # REDUNDANT CHECK??
-        # IS IT THO?
         if index >= len(data):
             raise MalformedFrameError()
+        ans = []
         cnt = data[index]
         next_index = index
         while cnt != 0:
@@ -348,10 +354,16 @@ class DNSframe:
             frame += b'\x00'
             frame += answer['type'].to_bytes(2, 'big')
             frame += answer['class'].to_bytes(2, 'big')
-            # frame += answer['ttl'].to_bytes(4, 'big')
-            frame += (0).to_bytes(4, 'big')
+            frame += answer['ttl'].to_bytes(4, 'big')
             frame += answer['rdlength'].to_bytes(2, 'big')
-            frame += answer['rdata']
+
+            # 5 is cname
+            if answer['type'] == 5:
+                for label in answer['rdata']:
+                    frame += len(label).to_bytes(1, 'big')
+                    frame += label
+            else:
+                frame += answer['rdata']
 
         # NAMESERVER RR
         for ns in self.name_servers:
@@ -363,7 +375,14 @@ class DNSframe:
             frame += ns['class'].to_bytes(2, 'big')
             frame += ns['ttl'].to_bytes(4, 'big')
             frame += ns['rdlength'].to_bytes(2, 'big')
-            frame += ns['rdata']
+
+            # 5 is cname
+            if ns['type'] == 5:
+                for label in ns['rdata']:
+                    frame += len(label).to_bytes(1, 'big')
+                    frame += label
+            else:
+                frame += ns['rdata']
 
         # ADDITIONAL RR
         for add in self.additional:
@@ -375,7 +394,14 @@ class DNSframe:
             frame += add['class'].to_bytes(2, 'big')
             frame += add['ttl'].to_bytes(4, 'big')
             frame += add['rdlength'].to_bytes(2, 'big')
-            frame += add['rdata']
+
+            # 5 is cname
+            if add['type'] == 5:
+                for label in add['rdata']:
+                    frame += len(label).to_bytes(1, 'big')
+                    frame += label
+            else:
+                frame += add['rdata']
 
         if include_len:
             return len(frame).to_bytes(2, 'big') + frame
