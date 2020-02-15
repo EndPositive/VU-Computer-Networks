@@ -199,21 +199,20 @@ class DNSserver:
                     return
 
                 # delete the responses that do not match the type and cache the good ones
-                # print('ans: ', response.answers)
                 for i in range(len(response.answers) - 1, -1, -1):
                     answer = response.answers[i]
                     if answer['type'] == query.queries[0]['qtype'] or answer['type'] == 5:
                         self.cache.add_record(answer)
 
                     if answer['type'] != query.queries[0]['qtype']:
-                        print('deleted', response.answers[i])
+                        # print('deleted', response.answers[i])
                         del response.answers[i]
                         continue
 
                     # change the name to the one in the query
                     response.answers[i]['name'] = query.queries[0]['qname']
 
-                print(response.answers)
+                # print(response.answers)
 
                 # if the name in the answer doesn't match the name in the query
                 # search in cache for cname of the
