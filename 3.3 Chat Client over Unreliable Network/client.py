@@ -1,10 +1,12 @@
 import socket
 import threading
+import zlib
+import time
 
 
 def send(conn, msg):
     try:
-        conn.sendall(msg.encode('utf-8'))
+        conn.sendto((msg + "\n").encode('utf-8'), ('18.195.107.195', 5382))
         return True
     except socket.error:
         return False
@@ -39,22 +41,24 @@ class ChatClient:
         self.__Wait = 0
 
         self.name = ""
+        self.ACK = False
+        self.OK = False
 
     def start(self):
-        self.__socket.connect(('18.195.107.195', 5382))
+        self.__socket.bind(("localhost", 54321))
         if self.__connect():
             self.__pushThread.start()
             self.__pullThread.start()
         else:
+            print("Disconnecting from host...")
             self.close()
 
     def __connect(self):
-        print("Username: ", end="", flush=True)
-        name = input()
+        name = input("Username: ")
         if not name:
             return self.__connect()
 
-        if not send(self.__socket, 'HELLO-FROM ' + name + '\n'):
+        if not send(self.__socket, 'HELLO-FROM ' + name):
             return False
 
         res = receive(self.__socket, 4096)
@@ -67,76 +71,114 @@ class ChatClient:
             return self.__connect()
         elif spl[0] == "BUSY":
             print("Server is busy.")
-            return False
+            return self.__connect()
         elif spl[0] == "HELLO":
             self.name = name
             print("Connected.")
             return True
-        else:
-            return False
+        return False
 
     def __push(self):
         while True and not self.Quit:
             if not self.__Wait == 0:
                 continue
 
-            print("\n<" + self.name + ">: ", end="", flush=True)
-            inp = input()
+            inp = input("\n$ ")
             if not inp:
                 continue
 
             spl = inp.split()
             if spl[0] == "!quit":
-                break
+                self.Quit = True
             elif spl[0] == "!who":
                 self.__Wait = 1
-                if not send(self.__socket, 'WHO\n'):
-                    break
+                if not send(self.__socket, 'WHO'):
+                    print("Something went wrong.\nDisconnecting from host...")
+                    self.Quit = True
             elif inp[0] == "@":
                 user = spl[0][1:]
                 msg = " ".join(spl[1:])
-                if user == self.name:
+                if user == "echobot" or user == self.name:
                     self.__Wait = 2
                 else:
                     self.__Wait = 1
-                if not send(self.__socket, "SEND " + user + " " + msg + "\n"):
-                    break
+                self.ACK = False
+                if not self.send_msg("SEND " + user + " " + msg):
+                    print("Something went wrong.\nDisconnecting from host...")
+                    self.Quit = True
             else:
-                self.__Wait = 1
-                send(self.__socket, inp + "\n")
+                print("Unknown command")
         self.close()
 
     def __pull(self):
         while True and not self.Quit:
             res = receive(self.__socket, 4096)
             if not res:
-                break
+                print("Something went wrong, disconnected from host.")
+                self.Quit = True
+                continue
 
             spl = res.split()
-            print('\x1b[1A' + '\x1b[2K' + '\x1b[1A')
             if spl[0] == "WHO-OK":
                 print("Online users: ", ",".join(spl[1:]))
             elif spl[0] == "SEND-OK":
-                print("Message successfully sent.")
-                self.__Wait -= 1
-                continue
+                self.OK = True
             elif spl[0] == "UNKNOWN":
                 print("User is not online.")
+                self.ACK = True
             elif spl[0] == "DELIVERY":
-                print("<" + spl[1] + ">:", " ".join(spl[2:]))
-                self.__Wait -= 1
-                continue
+                if "ACK" in res:
+                    self.ACK = True
+                    print("RECEIVED ACK")
+                    continue
+
+                adler = self.checkalder(spl)
+                if not adler:
+                    print("INCORRECT ADLER")
+                    continue
+
+                print("Received msg from " + spl[1] + ": ", " ".join(spl[2:-1]))
+
+                self.OK = False
+                t = threading.Thread(target=self.send_ack, args=(spl[1],))
+                t.start()
             elif spl[0] == "BAD-RQST-HDR":
-                print("Bad parameters")
+                print("Unknown command.")
             elif spl[0] == "BAD-RQST-BODY":
                 print("Bad parameters")
             else:
-                print(res)
-            self.__Wait = 0
+                print("Unknown error")
+
+            self.__Wait -= 1
+
         self.close()
 
+    def send_msg(self, msg):
+        data = " ".join(msg.split()[2:])
+        adler = str(zlib.adler32(data.encode("utf-8")))
+        while not self.ACK:
+            send(self.__socket, msg + " " + adler)
+            print("SENT MSG")
+            time.sleep(.2)
+        return True
+
+    def send_ack(self, user):
+        while not self.OK:
+            send(self.__socket, "SEND " + user + " ACK")
+            print("SENT ACK")
+            time.sleep(0.2)
+        return True
+
+    def checkalder(self, spl):
+        data = " ".join(spl[2:-1])
+        adler = str(zlib.adler32(data.encode("utf-8")))
+        adleroriginal = " ".join(spl[-1:])
+        if not adler == adleroriginal:
+            print(adler, adleroriginal)
+            return False
+        return adler
+
     def close(self, code=0):
-        self.Quit = True
         self.__socket.close()
         exit(code)
 
