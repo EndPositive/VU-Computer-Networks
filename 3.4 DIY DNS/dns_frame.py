@@ -236,10 +236,11 @@ class DNSframe:
                 raise MalformedFrameError()
 
             # 5 is cname
-            if self.name_servers[i]['type'] != 5:
-                self.name_servers[i]['rdata'] = data[index: index + self.name_servers[i]['rdlength']]
-            else:
+            if self.name_servers[i]['type'] == 5:
                 _, self.name_servers[i]['rdata'] = self.parse_name(data, index)
+            else:
+                self.name_servers[i]['rdata'] = data[index: index + self.name_servers[i]['rdlength']]
+
             index += self.name_servers[i]['rdlength']
 
         self.additional = []
@@ -289,11 +290,13 @@ class DNSframe:
             # the RDATA field is a 4 octet ARPA Internet address.
             if len(data) < index + self.additional[i]['rdlength']:
                 raise MalformedFrameError()
+
             # 5 is cname
-            if self.additional[i]['type'] != 5:
-                self.additional[i]['rdata'] = data[index: index + self.additional[i]['rdlength']]
-            else:
+            if self.additional[i]['type'] == 5:
                 _, self.additional[i]['rdata'] = self.parse_name(data, index)
+            else:
+                self.additional[i]['rdata'] = data[index: index + self.additional[i]['rdlength']]
+
             index += self.additional[i]['rdlength']
 
     @staticmethod
