@@ -179,9 +179,12 @@ class DNSframe:
             if len(data) < index + self.answers[i]['rdlength']:
                 raise MalformedFrameError()
 
-            # 5 is cname
+            # 5 is cname, 15 is cname
             if self.answers[i]['type'] == 5:
                 _, self.answers[i]['rdata'] = self.parse_name(data, index)
+            elif self.answers[i]['type'] == 15:
+                self.answers[i]['priority'] = int.from_bytes(data[index: index + 2], 'big')
+                _, self.answers[i]['rdata'] = self.parse_name(data, index + 2)
             else:
                 self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
 
@@ -235,9 +238,12 @@ class DNSframe:
             if len(data) < index + self.name_servers[i]['rdlength']:
                 raise MalformedFrameError()
 
-            # 5 is cname
+            # 5 is cname, 15 is mx
             if self.name_servers[i]['type'] == 5:
                 _, self.name_servers[i]['rdata'] = self.parse_name(data, index)
+            elif self.name_servers[i]['type'] == 15:
+                self.name_servers[i]['priority'] = int.from_bytes(data[index: index + 2], 'big')
+                _, self.name_servers[i]['rdata'] = self.parse_name(data, index + 2)
             else:
                 self.name_servers[i]['rdata'] = data[index: index + self.name_servers[i]['rdlength']]
 
@@ -291,9 +297,12 @@ class DNSframe:
             if len(data) < index + self.additional[i]['rdlength']:
                 raise MalformedFrameError()
 
-            # 5 is cname
+            # 5 is cname, 15 is mx
             if self.additional[i]['type'] == 5:
                 _, self.additional[i]['rdata'] = self.parse_name(data, index)
+            elif self.additional[i]['type'] == 15:
+                self.additional[i]['priority'] = int.from_bytes(data[index: index + 2], 'big')
+                _, self.additional[i]['rdata'] = self.parse_name(data, index + 2)
             else:
                 self.additional[i]['rdata'] = data[index: index + self.additional[i]['rdlength']]
 
@@ -361,8 +370,13 @@ class DNSframe:
             frame += answer['ttl'].to_bytes(4, 'big')
             frame += answer['rdlength'].to_bytes(2, 'big')
 
-            # 5 is cname
+            # 5 is cname, 15 is mx
             if answer['type'] == 5:
+                for label in answer['rdata']:
+                    frame += len(label).to_bytes(1, 'big')
+                    frame += label
+            elif answer['type'] == 15:
+                frame += answer['priority'].to_bytes(2, 'big')
                 for label in answer['rdata']:
                     frame += len(label).to_bytes(1, 'big')
                     frame += label
@@ -380,8 +394,13 @@ class DNSframe:
             frame += ns['ttl'].to_bytes(4, 'big')
             frame += ns['rdlength'].to_bytes(2, 'big')
 
-            # 5 is cname
+            # 5 is cname, 15 is mx
             if ns['type'] == 5:
+                for label in ns['rdata']:
+                    frame += len(label).to_bytes(1, 'big')
+                    frame += label
+            elif ns['type'] == 15:
+                frame += ns['priority'].to_bytes(2, 'big')
                 for label in ns['rdata']:
                     frame += len(label).to_bytes(1, 'big')
                     frame += label
@@ -399,8 +418,13 @@ class DNSframe:
             frame += add['ttl'].to_bytes(4, 'big')
             frame += add['rdlength'].to_bytes(2, 'big')
 
-            # 5 is cname
+            # 5 is cname, 15 is mx
             if add['type'] == 5:
+                for label in add['rdata']:
+                    frame += len(label).to_bytes(1, 'big')
+                    frame += label
+            elif add['type'] == 15:
+                frame += add['priority'].to_bytes(2, 'big')
                 for label in add['rdata']:
                     frame += len(label).to_bytes(1, 'big')
                     frame += label
