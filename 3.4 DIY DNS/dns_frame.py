@@ -180,10 +180,11 @@ class DNSframe:
                 raise MalformedFrameError()
 
             # 5 is cname
-            if self.answers[i]['type'] != 5:
-                self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
-            else:
+            if self.answers[i]['type'] == 5:
                 _, self.answers[i]['rdata'] = self.parse_name(data, index)
+            else:
+                self.answers[i]['rdata'] = data[index: index + self.answers[i]['rdlength']]
+
             index += self.answers[i]['rdlength']
 
         self.name_servers = []
