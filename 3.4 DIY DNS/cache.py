@@ -52,7 +52,7 @@ class Cache:
             self.update_rtt()
             time.sleep(timeout)
 
-    def get_best_servers(self, n=1, shuffle=True):
+    def get_best_servers(self, n=1, shuffle=False):
         if n < 1:
             return []
         if n == 1:
@@ -66,10 +66,11 @@ class Cache:
 
         l = list(zip(self.rtt.keys(), self.rtt.values()))
         l.sort(key=lambda x: x[1])
+
         if shuffle:
-            return np.random.shuffle([x[0] for x in l[:min(n, len(l))]])
-        else:
-            return [x[0] for x in l[:min(n, len(l))]]
+            np.random.shuffle([x[0] for x in l[:min(n, len(l))]])
+
+        return [x[0] for x in l[:min(n, len(l))]]
 
     def ping(self, ip):
         try:
