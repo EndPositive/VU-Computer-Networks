@@ -246,6 +246,8 @@ class DNSserver:
             if self.verbose:
                 print('[+]Sending response', flush=True)
             # send back the response
+            if protocol == 'DNS' and len(response.to_bytes(False)) > 512:
+                response.tc = 1
             send(sockfd, response.to_bytes(False), protocol, addr)
 
             # close the connection and exit the thread
@@ -280,7 +282,6 @@ class DNSserver:
             return
         except RuntimeError:
             self.cache.reset()
-
 
 
 if __name__ == '__main__':
