@@ -75,6 +75,7 @@ class DNSserver:
             if protocol == 'TCP':
                 data = sockfd.recv(1024)
                 data_len = int.from_bytes(data[:2], 'big')
+                data = data[2:]
                 while len(data) < data_len:
                     data += sockfd.recv(1024)
             query = DNSframe(data)
@@ -123,13 +124,8 @@ class DNSserver:
 
             # check for the cached names
             record_cache = self.cache.fetch_record(query.queries[0])
-            if record_cache:
-                response = DNSframe()
-                response.ancount = len(record_cache)
-                response.answers = record_cache
-            else:
-                found_good_server = False
-
+            # if record not found, try to switch the requested name with the cname
+            if record_cache is None:
                 # try and get the cname of the query if we have it in the cache
                 cname = self.cache.get_cname(query.queries[0])
                 res = None
@@ -138,9 +134,19 @@ class DNSserver:
                     cname = self.cache.get_cname(cname)
                 if res is not None:
                     forward_request.queries[0]['qname'] = res
+                    # fetch record again now that we have another name for the server
+                    record_cache = self.cache.fetch_record(forward_request.queries[0])
+
+            if record_cache:
+                # make a new frame to send to the client
+                response = DNSframe()
+                response.answers = record_cache
+            else:
+                found_good_server = False
 
                 if self.verbose:
                     print('[+]Making recursive call', flush=True)
+                # TODO: UNCOMMENT BELOW
                 # for server in self.cache.get_best_servers(15):
                 for server in ['8.8.8.8']:
                     try:
@@ -231,6 +237,10 @@ class DNSserver:
             # set the recursion to true
             response.rd = 1
             response.ra = 1
+
+            # set the queries the way they were
+            response.queries = query.queries
+            response.qdcount = 1
 
             # set the number of answers
             response.ancount = len(response.answers)

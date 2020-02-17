@@ -131,8 +131,8 @@ class Cache:
         if record not in self.rr[record_type] or to_add['type'] == 5:
             self.rr[record_type][record] = []
 
-        for i, x in enumerate(self.rr[record_type][record]):
-            if x['name'] == to_add['name']:
-                del self.rr[record_type][record][i]
-                break
+        # for i, x in enumerate(self.rr[record_type][record]):
+        #     if x['name'] == to_add['name']:
+        #         del self.rr[record_type][record][i]
+        #         break
         self.rr[record_type][record].append(to_add)

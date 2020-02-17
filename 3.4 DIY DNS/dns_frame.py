@@ -368,20 +368,26 @@ class DNSframe:
             frame += answer['type'].to_bytes(2, 'big')
             frame += answer['class'].to_bytes(2, 'big')
             frame += answer['ttl'].to_bytes(4, 'big')
-            frame += answer['rdlength'].to_bytes(2, 'big')
 
             # 5 is cname, 15 is mx
+            rdata = b''
             if answer['type'] == 5:
                 for label in answer['rdata']:
-                    frame += len(label).to_bytes(1, 'big')
-                    frame += label
+                    rdata += len(label).to_bytes(1, 'big')
+                    rdata += label
+                rdata += b'\x00'
             elif answer['type'] == 15:
-                frame += answer['priority'].to_bytes(2, 'big')
+                rdata += answer['priority'].to_bytes(2, 'big')
                 for label in answer['rdata']:
-                    frame += len(label).to_bytes(1, 'big')
-                    frame += label
+                    rdata += len(label).to_bytes(1, 'big')
+                    rdata += label
+                rdata += b'\x00'
             else:
-                frame += answer['rdata']
+                rdata += answer['rdata']
+
+            # account for the new rdlength
+            frame += len(rdata).to_bytes(2, 'big')
+            frame += rdata
 
         # NAMESERVER RR
         for ns in self.name_servers:
@@ -392,20 +398,26 @@ class DNSframe:
             frame += ns['type'].to_bytes(2, 'big')
             frame += ns['class'].to_bytes(2, 'big')
             frame += ns['ttl'].to_bytes(4, 'big')
-            frame += ns['rdlength'].to_bytes(2, 'big')
 
             # 5 is cname, 15 is mx
+            rdata = b''
             if ns['type'] == 5:
                 for label in ns['rdata']:
-                    frame += len(label).to_bytes(1, 'big')
-                    frame += label
+                    rdata += len(label).to_bytes(1, 'big')
+                    rdata += label
+                rdata += b'\x00'
             elif ns['type'] == 15:
-                frame += ns['priority'].to_bytes(2, 'big')
+                rdata += ns['priority'].to_bytes(2, 'big')
                 for label in ns['rdata']:
-                    frame += len(label).to_bytes(1, 'big')
-                    frame += label
+                    rdata += len(label).to_bytes(1, 'big')
+                    rdata += label
+                rdata += b'\x00'
             else:
-                frame += ns['rdata']
+                rdata += ns['rdata']
+
+            # account for the new rdlength
+            frame += len(rdata).to_bytes(2, 'big')
+            frame += rdata
 
         # ADDITIONAL RR
         for add in self.additional:
@@ -416,20 +428,26 @@ class DNSframe:
             frame += add['type'].to_bytes(2, 'big')
             frame += add['class'].to_bytes(2, 'big')
             frame += add['ttl'].to_bytes(4, 'big')
-            frame += add['rdlength'].to_bytes(2, 'big')
 
             # 5 is cname, 15 is mx
+            rdata = b''
             if add['type'] == 5:
                 for label in add['rdata']:
-                    frame += len(label).to_bytes(1, 'big')
-                    frame += label
+                    rdata += len(label).to_bytes(1, 'big')
+                    rdata += label
+                rdata += b'\x00'
             elif add['type'] == 15:
-                frame += add['priority'].to_bytes(2, 'big')
+                rdata += add['priority'].to_bytes(2, 'big')
                 for label in add['rdata']:
-                    frame += len(label).to_bytes(1, 'big')
-                    frame += label
+                    rdata += len(label).to_bytes(1, 'big')
+                    rdata += label
+                rdata += b'\x00'
             else:
-                frame += add['rdata']
+                rdata += add['rdata']
+
+            # account for the new rdlength
+            frame += len(rdata).to_bytes(2, 'big')
+            frame += rdata
 
         if include_len:
             return len(frame).to_bytes(2, 'big') + frame
