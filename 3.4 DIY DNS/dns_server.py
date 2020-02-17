@@ -103,7 +103,7 @@ class DNSserver:
             # check if the frame contains more than 1 query and remove them if so
             # do this because it makes things simple, and because nobody on the planet implements it
             # WHY IS IT EVEN IN THE SPECIFICATION HONESTLY
-            for i in range(len(query.queries),1):
+            for i in range(1, len(query.queries)):
                 del query.queries[i]
             query.qdcount = 1
 
