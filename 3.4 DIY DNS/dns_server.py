@@ -146,7 +146,8 @@ class DNSserver:
 
                 if self.verbose:
                     print('[+]Making recursive call', flush=True)
-                for server in self.cache.get_best_servers(15):
+                # for server in self.cache.get_best_servers(15):
+                for server in ['8.8.8.8']:
                     try:
                         # open connection to the server and send the request
                         forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
