@@ -1,6 +1,5 @@
 import socket
 import threading
-import zlib
 import time
 
 
@@ -25,6 +24,24 @@ def receive(conn, size):
             return data.decode("utf-8")
     except socket.error:
         return False
+
+
+def to_bits(msg):
+    msg = msg.encode()
+    bits = 0
+    for i in range(len(msg) - 1, -1, -1):
+        bits += msg[i] << (i * 8)
+    return bits
+
+
+def get_crc(m, p=0xb):
+    r = to_bits(m) << len(bin(p)) - 3
+    while True:
+        if len(bin(r)) < len(bin(p)):
+            break
+        d = p << len(bin(r)) - len(bin(p))
+        r = d ^ r
+    return r
 
 
 class ChatClient:
@@ -132,9 +149,8 @@ class ChatClient:
                     print("RECEIVED ACK")
                     continue
 
-                adler = self.checkalder(spl)
-                if not adler:
-                    print("INCORRECT ADLER")
+                if not spl[-1] == get_crc(spl[2:-1]):
+                    print("INCORRECT CRC")
                     continue
 
                 print("Received msg from " + spl[1] + ": ", " ".join(spl[2:-1]))
@@ -155,9 +171,8 @@ class ChatClient:
 
     def send_msg(self, msg):
         data = " ".join(msg.split()[2:])
-        adler = str(zlib.adler32(data.encode("utf-8")))
         while not self.ACK:
-            send(self.__socket, msg + " " + adler)
+            send(self.__socket, msg + " " + get_crc(data))
             print("SENT MSG")
             time.sleep(.2)
         return True
@@ -168,15 +183,6 @@ class ChatClient:
             print("SENT ACK")
             time.sleep(0.2)
         return True
-
-    def checkalder(self, spl):
-        data = " ".join(spl[2:-1])
-        adler = str(zlib.adler32(data.encode("utf-8")))
-        adleroriginal = " ".join(spl[-1:])
-        if not adler == adleroriginal:
-            print(adler, adleroriginal)
-            return False
-        return adler
 
     def close(self, code=0):
         self.__socket.close()
