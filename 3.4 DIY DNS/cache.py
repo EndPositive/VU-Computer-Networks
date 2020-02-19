@@ -1,8 +1,8 @@
 import time
 import socket
 import threading
+import random
 from copy import deepcopy as cp
-import numpy as np
 
 '''
 self.rr['google.com'][type] = [list of answers]
@@ -52,7 +52,7 @@ class Cache:
             self.update_rtt()
             time.sleep(timeout)
 
-    def get_best_servers(self, n=1, shuffle=False):
+    def get_best_servers(self, n=1, to_shuffle=False):
         if n < 1:
             return []
         if n == 1:
@@ -67,10 +67,11 @@ class Cache:
         l = list(zip(self.rtt.keys(), self.rtt.values()))
         l.sort(key=lambda x: x[1])
 
-        if shuffle:
-            np.random.shuffle([x[0] for x in l[:min(n, len(l))]])
+        l = [x[0] for x in l[:min(n, len(l))]]
+        if to_shuffle:
+            random.shuffle(l)
 
-        return [x[0] for x in l[:min(n, len(l))]]
+        return l
 
     def ping(self, ip):
         try:
