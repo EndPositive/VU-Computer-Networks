@@ -7,7 +7,6 @@ def send(conn, msg):
     if type(msg) == str:
         msg += '\n'
         msg = msg.encode('utf8')
-    print(msg)
     try:
         conn.sendto(msg, ('18.195.107.195', 5382))
         return True
@@ -46,9 +45,8 @@ def get_crc(m, p=0xb):
 
 
 def set_header(msg, msg_id, ack=False):
-    msg += msg_id.to_bytes(2, 'big')
-    msg += ack.to_bytes(1, 'big')
-    return get_crc(msg) + msg
+    header = msg_id.to_bytes(2, 'big') + ack.to_bytes(1, 'big')
+    return get_crc(msg).to_bytes(1, 'big') + header + msg
 
 
 class ChatClient:
@@ -141,11 +139,9 @@ class ChatClient:
                 self.Quit = True
                 continue
 
-            print(res)
             if res.startswith(b"WHO-OK"):
                 print("Online users: ", res[7:-1].decode('utf8'))
             elif res.startswith(b"SEND-OK"):
-                print('server RECV')
                 self.OK = True
             elif res.startswith(b"UNKNOWN"):
                 print("User is not online.")
@@ -154,22 +150,23 @@ class ChatClient:
 
                 from_user = spl[1].decode('utf8')
                 msg = spl[2]
-                msg_id = msg[1:3].from_bytes('big')
+                msg_id = int.from_bytes(msg[1:3], 'big')
 
-                if msg[0] != get_crc(msg[1:-1]):
+                if msg[0] != get_crc(msg[4:]):
                     print("INCORRECT CRC")
                     continue
 
                 # check if the ack is set in the header
-                if msg[1] == 1:
+                if msg[3] == 1:
                     self.ACK[from_user] = True
                     print("RECEIVED ACK")
                     continue
 
+                msg = msg[4:]
                 print("Received msg from " + from_user + ": ", " ".join(msg.decode('utf8')))
 
                 self.OK = False
-                t = threading.Thread(target=self.send_ack, args=(spl[1],))
+                t = threading.Thread(target=self.send_ack, args=(from_user,))
                 t.start()
             elif res.startswith(b"BAD-RQST-HDR"):
                 print("Unknown command.")
@@ -198,9 +195,9 @@ class ChatClient:
         if type(user) == str:
             user = user.encode('utf8')
 
-        msg = set_header(b'\n', True)
+        msg = set_header(b'\n', 0, ack=True)
         while not self.OK:
-            send(self.__socket, b"SEND " + user + b" " + msg + b"\n")
+            send(self.__socket, b"SEND " + user + b" " + msg)
             print("SENT ACK")
             time.sleep(0.5)
         return True
