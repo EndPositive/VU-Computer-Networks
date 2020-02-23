@@ -160,7 +160,7 @@ class ChatClient:
                     print("RECEIVED ACK")
                     continue
 
-                if header & 0b01111111 == get_crc(msg):
+                if header & 0b01111111 != get_crc(msg):
                     print("INCORRECT CRC")
                     continue
 
@@ -194,11 +194,12 @@ class ChatClient:
     def send_ack(self, user):
         if type(user) == str:
             user = user.encode('utf8')
+
+        msg = set_header(b'', True)
         while not self.OK:
-            msg = set_header(b'', True)
             send(self.__socket, b"SEND " + user + b" " + msg + b"\n")
             print("SENT ACK")
-            time.sleep(0.2)
+            time.sleep(0.5)
         return True
 
     def close(self, code=0):
