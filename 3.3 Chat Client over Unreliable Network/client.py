@@ -156,21 +156,19 @@ class ChatClient:
                 spl = res.split(b' ', 2)
 
                 from_user = spl[1].decode('utf8')
-                msg = spl[2]
-                msg_id = int.from_bytes(msg[1:3], 'big')
+                crc_check, msg_id, ack_flag, msg = get_header(spl[2])
 
-                if msg[0] != get_crc(msg[4:]):
+                if not crc_check:
                     print("INCORRECT CRC")
                     continue
 
                 # check if the ack is set in the header
-                if msg[3] == 1:
+                if ack_flag:
                     self.ACK[from_user] = True
                     print("RECEIVED ACK")
                     continue
 
-                msg = msg[4:]
-                print("Received msg from " + from_user + ": ", " ".join(msg.decode('utf8')))
+                print("Received msg from " + from_user + ": ", msg.decode('utf8'))
 
                 self.OK = False
                 t = threading.Thread(target=self.send_ack, args=(from_user,))
