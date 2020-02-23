@@ -7,6 +7,7 @@ def send(conn, msg):
     if type(msg) == str:
         msg += '\n'
         msg = msg.encode('utf8')
+    print(msg)
     try:
         conn.sendto(msg, ('18.195.107.195', 5382))
         return True
@@ -138,6 +139,7 @@ class ChatClient:
                 self.Quit = True
                 continue
 
+            print(res)
             if res.startswith(b"WHO-OK"):
                 print("Online users: ", res[7:-1].decode('utf8'))
             elif res.startswith(b"SEND-OK"):
@@ -184,15 +186,17 @@ class ChatClient:
 
         msg = set_header(msg, ack)
         while not self.ACK[user]:
-            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg)
+            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg + b"\n")
             print("SENT MSG")
             time.sleep(.5)
         return True
 
     def send_ack(self, user):
+        if type(user) == str:
+            user = user.encode('utf8')
         while not self.OK:
             msg = set_header(b'', True)
-            send(self.__socket, b"SEND " + user.encode("utf8") + b" " + msg)
+            send(self.__socket, b"SEND " + user + b" " + msg + b"\n")
             print("SENT ACK")
             time.sleep(0.2)
         return True
