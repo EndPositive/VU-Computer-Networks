@@ -2,23 +2,15 @@ import math
 
 
 def rotate_left(a, n, w=16):
-    for i in range(n):
-        c = a & (1 << (w - 1))
-        a <<= 1
-        if c:
-            a |= 1
-        a &= (pow(2, w) - 1)
-    return a
+    a &= (2 ** w - 1)
+    n %= w
+    return ((a << n) | (a >> (w - n))) & (2 ** w - 1)
 
 
 def rotate_right(a, n, w=16):
-    for i in range(n):
-        c = a & 1
-        a >>= 1
-        if c:
-            a |= (1 << (w - 1))
-        a &= (pow(2, w) - 1)
-    return a
+    n %= w
+    a &= (2 ** w - 1)
+    return ((a >> n) | (a << (w - n))) & (2 ** w - 1)
 
 
 class rc5:
@@ -27,7 +19,7 @@ class rc5:
         self.K = [0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91]
 
         # The number of rounds to use when encrypting data.
-        self.r = 2
+        self.r = 10
 
     def get_key(self):
         # The length of the key in words (or 1, if b=0)
@@ -57,10 +49,10 @@ class rc5:
 
         return S
 
-    def encrypt(self, A, B, S):
+    def encrypt(self, A, B, S, w=16):
         print(A, B)
-        A = A + S[0]
-        B = B + S[1]
+        A = (A + S[0]) % (1 << w)
+        B = (B + S[1]) % (1 << w)
         for i in range(1, self.r + 1):
             A = rotate_left(A ^ B, B) + S[2 * i]
             B = rotate_left(B ^ A, A) + S[2 * i + 1]
@@ -68,15 +60,15 @@ class rc5:
 
         return A, B
 
-    def decrypt(self, A, B, S):
+    def decrypt(self, A, B, S, w=16):
         print(A, B)
         for i in range(self.r, 0, -1):
             B = rotate_right(B - S[2 * i + 1], A) ^ A
             A = rotate_right(A - S[2 * i], B) ^ B
             print(A, B)
 
-        B = B - S[1]
-        A = A - S[0]
+        B = (B - S[1]) % (1 << w)
+        A = (A - S[0]) % (1 << w)
         print(A, B)
 
         return A, B
