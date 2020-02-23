@@ -46,7 +46,7 @@ def get_crc(m, p=0xb):
 
 
 def set_header(msg, ack=False):
-    return (get_crc(msg) & ack << 7).to_bytes(1, 'big') + msg
+    return (get_crc(msg) | ack << 7).to_bytes(1, 'big') + msg
 
 
 class ChatClient:
