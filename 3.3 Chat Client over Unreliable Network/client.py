@@ -198,8 +198,7 @@ class ChatClient:
         if type(user) == str:
             user = user.encode('utf8')
 
-        msg += b"\n"
-        msg = set_header(b'', True)
+        msg = set_header(b'\n', True)
         while not self.OK:
             send(self.__socket, b"SEND " + user + b" " + msg + b"\n")
             print("SENT ACK")
