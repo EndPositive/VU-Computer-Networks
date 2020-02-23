@@ -4,8 +4,11 @@ import time
 
 
 def send(conn, msg):
+    if type(msg) == str:
+        msg += '\n'
+        msg = msg.encode('utf8')
     try:
-        conn.sendto((msg + "\n").encode('utf-8'), ('18.195.107.195', 5382))
+        conn.sendto(msg, ('18.195.107.195', 5382))
         return True
     except socket.error:
         return False
@@ -21,13 +24,12 @@ def receive(conn, size):
                 data += conn.recv(size)
                 if not data:
                     break
-            return data.decode("utf-8")
+            return data
     except socket.error:
         return False
 
 
 def to_bits(msg):
-    msg = msg.encode()
     bits = 0
     for i in range(len(msg) - 1, -1, -1):
         bits += msg[i] << (i * 8)
@@ -35,13 +37,16 @@ def to_bits(msg):
 
 
 def get_crc(m, p=0xb):
-    r = to_bits(m) << len(bin(p)) - 3
-    while True:
-        if len(bin(r)) < len(bin(p)):
-            break
+    r = to_bits(m) << (len(bin(p)) - 3)
+    while len(bin(r)) >= len(bin(p)):
         d = p << len(bin(r)) - len(bin(p))
         r = d ^ r
     return r
+
+
+def set_header(msg, msg_id, ack=False):
+    header = msg_id.to_bytes(2, 'big') + ack.to_bytes(1, 'big')
+    return get_crc(msg).to_bytes(1, 'big') + header + msg
 
 
 class ChatClient:
@@ -58,11 +63,11 @@ class ChatClient:
         self.__Wait = 0
 
         self.name = ""
-        self.ACK = False
+        # ACK maps username to boolean values meaning if they sent us an ack after we sent them a message
+        self.ACK = {}
         self.OK = False
 
     def start(self):
-        self.__socket.bind(("localhost", 54321))
         if self.__connect():
             self.__pushThread.start()
             self.__pullThread.start()
@@ -82,14 +87,13 @@ class ChatClient:
         if not res:
             return False
 
-        spl = res.split()
-        if spl[0] == "IN-USE":
+        if res.startswith(b"IN-USE"):
             print("Username already in use.")
             return self.__connect()
-        elif spl[0] == "BUSY":
+        elif res.startswith(b"BUSY"):
             print("Server is busy.")
             return self.__connect()
-        elif spl[0] == "HELLO":
+        elif res.startswith(b"HELLO"):
             self.name = name
             print("Connected.")
             return True
@@ -97,14 +101,14 @@ class ChatClient:
 
     def __push(self):
         while True and not self.Quit:
-            if not self.__Wait == 0:
+            if self.__Wait != 0:
                 continue
 
             inp = input("\n$ ")
             if not inp:
                 continue
 
-            spl = inp.split()
+            spl = inp.split(' ', 1)
             if spl[0] == "!quit":
                 self.Quit = True
             elif spl[0] == "!who":
@@ -114,13 +118,13 @@ class ChatClient:
                     self.Quit = True
             elif inp[0] == "@":
                 user = spl[0][1:]
-                msg = " ".join(spl[1:])
+                msg = spl[1]
                 if user == "echobot" or user == self.name:
                     self.__Wait = 2
                 else:
                     self.__Wait = 1
-                self.ACK = False
-                if not self.send_msg("SEND " + user + " " + msg):
+                self.ACK[user] = False
+                if not self.send_msg(user, msg):
                     print("Something went wrong.\nDisconnecting from host...")
                     self.Quit = True
             else:
@@ -135,32 +139,38 @@ class ChatClient:
                 self.Quit = True
                 continue
 
-            spl = res.split()
-            if spl[0] == "WHO-OK":
-                print("Online users: ", ",".join(spl[1:]))
-            elif spl[0] == "SEND-OK":
+            if res.startswith(b"WHO-OK"):
+                print("Online users: ", res[7:-1].decode('utf8'))
+            elif res.startswith(b"SEND-OK"):
                 self.OK = True
-            elif spl[0] == "UNKNOWN":
+            elif res.startswith(b"UNKNOWN"):
                 print("User is not online.")
-                self.ACK = True
-            elif spl[0] == "DELIVERY":
-                if "ACK" in res:
-                    self.ACK = True
-                    print("RECEIVED ACK")
-                    continue
+            elif res.startswith(b"DELIVERY"):
+                spl = res.split(b' ', 2)
 
-                if not spl[-1] == get_crc(spl[2:-1]):
+                from_user = spl[1].decode('utf8')
+                msg = spl[2]
+                msg_id = int.from_bytes(msg[1:3], 'big')
+
+                if msg[0] != get_crc(msg[4:]):
                     print("INCORRECT CRC")
                     continue
 
-                print("Received msg from " + spl[1] + ": ", " ".join(spl[2:-1]))
+                # check if the ack is set in the header
+                if msg[3] == 1:
+                    self.ACK[from_user] = True
+                    print("RECEIVED ACK")
+                    continue
+
+                msg = msg[4:]
+                print("Received msg from " + from_user + ": ", " ".join(msg.decode('utf8')))
 
                 self.OK = False
-                t = threading.Thread(target=self.send_ack, args=(spl[1],))
+                t = threading.Thread(target=self.send_ack, args=(from_user,))
                 t.start()
-            elif spl[0] == "BAD-RQST-HDR":
+            elif res.startswith(b"BAD-RQST-HDR"):
                 print("Unknown command.")
-            elif spl[0] == "BAD-RQST-BODY":
+            elif res.startswith(b"BAD-RQST-BODY"):
                 print("Bad parameters")
             else:
                 print("Unknown error")
@@ -169,19 +179,27 @@ class ChatClient:
 
         self.close()
 
-    def send_msg(self, msg):
-        data = " ".join(msg.split()[2:])
-        while not self.ACK:
-            send(self.__socket, msg + " " + get_crc(data))
+    def send_msg(self, user, msg, ack=False):
+        if type(msg) == str:
+            msg = msg.encode('utf8')
+
+        msg += b"\n"
+        msg = set_header(msg, 0, ack=ack)
+        while not self.ACK[user]:
+            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg)
             print("SENT MSG")
-            time.sleep(.2)
+            time.sleep(.5)
         return True
 
     def send_ack(self, user):
+        if type(user) == str:
+            user = user.encode('utf8')
+
+        msg = set_header(b'\n', 0, ack=True)
         while not self.OK:
-            send(self.__socket, "SEND " + user + " ACK")
+            send(self.__socket, b"SEND " + user + b" " + msg)
             print("SENT ACK")
-            time.sleep(0.2)
+            time.sleep(0.5)
         return True
 
     def close(self, code=0):

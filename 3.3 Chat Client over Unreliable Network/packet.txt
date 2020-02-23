@@ -1,0 +1,12 @@
++--------------------+--------------------+--------------------+--------------------+
+|        CRC         |                  MSG ID                 |     PACKET TYPE    |
++--------------------+--------------------+--------------------+--------------------+
+|                                                                                   |
+/                                      MESSAGE                                      /
+|                                                                                   |
++-----------------------------------------------------------------------------------+
+
+CRC: up to 8 bit crc of the whole packet except the crc field
+MSG ID: 16 bit value representing a message id
+PACKET TYPE: 0 = NORMAL MESSAGE, 1 = ACK
+MESSAGE: variable length message ending in \n
