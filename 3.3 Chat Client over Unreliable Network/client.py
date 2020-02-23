@@ -45,8 +45,15 @@ def get_crc(m, p=0xb):
 
 
 def set_header(msg, msg_id, ack=False):
-    header = msg_id.to_bytes(2, 'big') + ack.to_bytes(1, 'big')
-    return get_crc(msg).to_bytes(1, 'big') + header + msg
+    header = msg_id.to_bytes(1, 'big') + (ack << 7).to_bytes(1, 'big')
+    return get_crc(header + msg).to_bytes(1, 'big') + header + msg
+
+
+def get_header(msg):
+    crc_check = msg[0] == get_crc(msg[1:])
+    msg_id = msg[1]
+    ack = (msg[2] & 0b10000000) > 0
+    return crc_check, msg_id, ack, msg[3:]
 
 
 class ChatClient:
