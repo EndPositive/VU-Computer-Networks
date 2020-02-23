@@ -45,8 +45,10 @@ def get_crc(m, p=0xb):
     return r
 
 
-def set_header(msg, ack=False):
-    return (get_crc(msg) | ack << 7).to_bytes(1, 'big') + msg
+def set_header(msg, msg_id, ack=False):
+    msg += msg_id.to_bytes(2, 'big')
+    msg += ack.to_bytes(1, 'big')
+    return get_crc(msg) + msg
 
 
 class ChatClient:
@@ -66,6 +68,9 @@ class ChatClient:
         # ACK maps username to boolean values meaning if they sent us an ack after we sent them a message
         self.ACK = {}
         self.OK = False
+
+        self.last_recv = -1
+        self.last_sent = -1
 
     def start(self):
         if self.__connect():
@@ -151,17 +156,15 @@ class ChatClient:
                 spl = res.split(b' ', 2)
                 from_user = spl[1].decode('utf8')
                 msg = spl[2]
-                header = msg[0]
-                msg = msg[1:]
 
-                # check if the ack bit is set in the header
-                if header & 0b10000000:
-                    self.ACK[from_user] = True
-                    print("RECEIVED ACK")
+                if msg[0] != get_crc(msg[1:]):
+                    print("INCORRECT CRC")
                     continue
 
-                if header & 0b01111111 != get_crc(msg):
-                    print("INCORRECT CRC")
+                # check if the ack is set in the header
+                if msg[1] == 1:
+                    self.ACK[from_user] = True
+                    print("RECEIVED ACK")
                     continue
 
                 print("Received msg from " + from_user + ": ", " ".join(msg.decode('utf8')))
