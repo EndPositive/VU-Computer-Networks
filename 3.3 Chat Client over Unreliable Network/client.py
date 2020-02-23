@@ -1,6 +1,8 @@
 import socket
 import threading
 import time
+import math
+from rc5 import *
 
 
 def send(conn, msg):
@@ -29,7 +31,65 @@ def receive(conn, size):
         return False
 
 
-def to_bits(msg):
+def encrypt(msg, enc):
+    bits = msg_to_bits(msg.encode())
+    words = bits_to_words(bits)
+    encwords = []
+    for i in range(math.ceil(len(words) / 2)):
+        try:
+            A, B = enc.encrypt(words[i * 2], words[i * 2 + 1])
+        except IndexError:
+            A, B = enc.encrypt(words[i * 2], 0)
+        encwords.extend([hex(A)[2:], hex(B)[2:]])
+    return "".join(encwords)
+
+
+def decrypt(hexstring, enc):
+    decwords = []
+    words = hex_to_words(hexstring)
+    for i in range(math.ceil(len(words) / 2)):
+        try:
+            A, B = enc.decrypt(words[i * 2], words[i * 2 + 1])
+        except IndexError:
+            A, B = enc.decrypt(words[i * 2], 0)
+        decwords.extend([A, B])
+    bits = words_to_bits(decwords)
+    return bits_to_msg(bits)
+
+
+def words_to_bits(words, w=16):
+    bits = 0
+    for i in range(len(words)):
+        bits += words[i] << i * w
+        print(bits)
+    return bits
+
+
+def bits_to_words(bits, w=16):
+    words = []
+    while bits > 0:
+        words.append(bits & (2 ** w - 1))
+        bits >>= w
+    return words
+
+
+def hex_to_words(hex, w=4):
+    words = []
+    hexwords = [hex[i:i + w] for i in range(0, len(hex), w)]
+    for i in hexwords:
+        words.append(int(i, 16))
+    return words
+
+
+def bits_to_msg(bits):
+    msg = ""
+    while bits > 0:
+        msg += chr(bits & (2 ** 8 - 1))
+        bits >>= 8
+    return msg
+
+
+def msg_to_bits(msg):
     bits = 0
     for i in range(len(msg) - 1, -1, -1):
         bits += msg[i] << (i * 8)
@@ -37,7 +97,7 @@ def to_bits(msg):
 
 
 def get_crc(m, p=0xb):
-    r = to_bits(m) << (len(bin(p)) - 3)
+    r = msg_to_bits(m) << (len(bin(p)) - 3)
     while len(bin(r)) >= len(bin(p)):
         d = p << len(bin(r)) - len(bin(p))
         r = d ^ r
@@ -213,6 +273,9 @@ class ChatClient:
 
 
 if __name__ == '__main__':
+    # enc = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
+    # hexstring = encrypt("HELLO", enc)
+    # res = decrypt(hexstring, enc)
     chatClient = ChatClient()
     chatClient.start()
     while True and not chatClient.Quit:

@@ -211,33 +211,28 @@ class rc5:
             j = (j + 1) % c
 
     def encrypt(self, A, B, w=16):
-        print(A, B)
         A = (A + self.S[0]) % (1 << w)
         B = (B + self.S[1]) % (1 << w)
         for i in range(1, self.r + 1):
             A = rotate_left(A ^ B, B) + self.S[2 * i]
             B = rotate_left(B ^ A, A) + self.S[2 * i + 1]
-            print(A, B)
 
-        return A, B
+        return A % (1 << w), B % (1 << w)
 
     def decrypt(self, A, B, w=16):
-        print(A, B)
         for i in range(self.r, 0, -1):
             B = rotate_right(B - self.S[2 * i + 1], A) ^ A
             A = rotate_right(A - self.S[2 * i], B) ^ B
-            print(A, B)
 
         B = (B - self.S[1]) % (1 << w)
         A = (A - self.S[0]) % (1 << w)
-        print(A, B)
 
         return A, B
 
 
 if __name__ == "__main__":
     rc5 = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
-    A, B = rc5.encrypt("h".encode()[0], "e".encode()[0])
+    A, B = rc5.encrypt("h".encode()[0], 0)
     print("")
     A, B = rc5.decrypt(A, B)
     print(chr(A), chr(B))
