@@ -31,27 +31,27 @@ def receive(conn, size):
         return False
 
 
-def encrypt(msg, enc):
+def encrypt(msg, rc):
     bits = msg_to_bits(msg.encode())
     words = bits_to_words(bits)
     encwords = []
     for i in range(math.ceil(len(words) / 2)):
         try:
-            A, B = enc.encrypt(words[i * 2], words[i * 2 + 1])
+            A, B = rc.encrypt(words[i * 2], words[i * 2 + 1])
         except IndexError:
-            A, B = enc.encrypt(words[i * 2], 0)
+            A, B = rc.encrypt(words[i * 2], 0)
         encwords.extend([hex(A)[2:], hex(B)[2:]])
     return "".join(encwords)
 
 
-def decrypt(hexstring, enc):
+def decrypt(hexstring, rc):
     decwords = []
     words = hex_to_words(hexstring)
     for i in range(math.ceil(len(words) / 2)):
         try:
-            A, B = enc.decrypt(words[i * 2], words[i * 2 + 1])
+            A, B = rc.decrypt(words[i * 2], words[i * 2 + 1])
         except IndexError:
-            A, B = enc.decrypt(words[i * 2], 0)
+            A, B = rc.decrypt(words[i * 2], 0)
         decwords.extend([A, B])
     bits = words_to_bits(decwords)
     return bits_to_msg(bits)
@@ -61,7 +61,6 @@ def words_to_bits(words, w=16):
     bits = 0
     for i in range(len(words)):
         bits += words[i] << i * w
-        print(bits)
     return bits
 
 
@@ -104,16 +103,17 @@ def get_crc(m, p=0xb):
     return r
 
 
-def set_header(msg, msg_id, ack=False):
+def set_header(data, msg_id, ack=False):
     header = msg_id.to_bytes(1, 'big') + (ack << 7).to_bytes(1, 'big')
-    return get_crc(header + msg).to_bytes(1, 'big') + header + msg
+    return get_crc(header + data).to_bytes(1, 'big') + header + data
 
 
-def get_header(msg):
-    crc_check = msg[0] == get_crc(msg[1:])
-    msg_id = msg[1]
-    ack = (msg[2] & 0b10000000) > 0
-    return crc_check, msg_id, ack, msg[3:]
+def get_header(packet):
+    crc_check = packet[0] == get_crc(packet[1:])
+    msg_id = packet[1]
+    ack = (packet[2] & 0b10000000) > 0
+    data = packet[3:]
+    return crc_check, msg_id, ack, data
 
 
 class ChatClient:
@@ -185,7 +185,7 @@ class ChatClient:
                     self.Quit = True
             elif inp[0] == "@":
                 user = spl[0][1:]
-                msg = spl[1]
+                msg = " ".join(spl[1:])
                 if user == "echobot" or user == self.name:
                     self.__Wait = 2
                 else:
@@ -216,7 +216,7 @@ class ChatClient:
                 spl = res.split(b' ', 2)
 
                 from_user = spl[1].decode('utf8')
-                crc_check, msg_id, ack_flag, msg = get_header(spl[2])
+                crc_check, msg_id, ack_flag, data = get_header(spl[2])
 
                 if not crc_check:
                     print("INCORRECT CRC")
@@ -228,7 +228,8 @@ class ChatClient:
                     print("RECEIVED ACK")
                     continue
 
-                print("Received msg from " + from_user + ": ", msg.decode('utf8'))
+                rc = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
+                print("Received msg from " + from_user + ": ", decrypt(data[:-1], rc))
 
                 self.OK = False
                 t = threading.Thread(target=self.send_ack, args=(from_user,))
@@ -245,13 +246,12 @@ class ChatClient:
         self.close()
 
     def send_msg(self, user, msg, ack=False):
-        if type(msg) == str:
-            msg = msg.encode('utf8')
-
-        msg += b"\n"
-        msg = set_header(msg, 0, ack=ack)
+        rc = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
+        data = encrypt(msg, rc).encode()
+        data += b"\n"
+        packet = set_header(data, 0, ack=ack)
         while not self.ACK[user]:
-            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg)
+            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + packet)
             print("SENT MSG")
             time.sleep(.5)
         return True
