@@ -69,9 +69,6 @@ class ChatClient:
         self.ACK = {}
         self.OK = False
 
-        self.last_recv = -1
-        self.last_sent = -1
-
     def start(self):
         if self.__connect():
             self.__pushThread.start()
@@ -154,10 +151,12 @@ class ChatClient:
                 print("User is not online.")
             elif res.startswith(b"DELIVERY"):
                 spl = res.split(b' ', 2)
+
                 from_user = spl[1].decode('utf8')
                 msg = spl[2]
+                msg_id = msg[1:3].from_bytes('big')
 
-                if msg[0] != get_crc(msg[1:]):
+                if msg[0] != get_crc(msg[1:-1]):
                     print("INCORRECT CRC")
                     continue
 
@@ -187,9 +186,10 @@ class ChatClient:
         if type(msg) == str:
             msg = msg.encode('utf8')
 
-        msg = set_header(msg, ack)
+        msg += b"\n"
+        msg = set_header(msg, 0, ack=ack)
         while not self.ACK[user]:
-            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg + b"\n")
+            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg)
             print("SENT MSG")
             time.sleep(.5)
         return True
@@ -198,6 +198,7 @@ class ChatClient:
         if type(user) == str:
             user = user.encode('utf8')
 
+        msg += b"\n"
         msg = set_header(b'', True)
         while not self.OK:
             send(self.__socket, b"SEND " + user + b" " + msg + b"\n")
