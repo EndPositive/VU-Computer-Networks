@@ -72,7 +72,6 @@ class rc5:
 
         return A, B
 
-
     def encrypt_msg(self, msg):
         msg = msg.encode()
         padding = (4 - len(msg) % 4)
@@ -86,7 +85,6 @@ class rc5:
             enc += A.to_bytes(2, 'big')
             enc += B.to_bytes(2, 'big')
         return bytes(enc)
-
 
     def decrypt_msg(self, msg):
         enc = b''
