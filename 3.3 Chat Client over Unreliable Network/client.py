@@ -1,7 +1,6 @@
 import socket
 import threading
 import time
-import math
 from rc5 import *
 
 
@@ -29,60 +28,6 @@ def receive(conn, size):
             return data
     except socket.error:
         return False
-
-
-def encrypt(msg, rc):
-    bits = msg_to_bits(msg.encode())
-    words = bits_to_words(bits)
-    encwords = []
-    for i in range(math.ceil(len(words) / 2)):
-        try:
-            A, B = rc.encrypt(words[i * 2], words[i * 2 + 1])
-        except IndexError:
-            A, B = rc.encrypt(words[i * 2], 0)
-        encwords.extend([hex(A)[2:], hex(B)[2:]])
-    return "".join(encwords)
-
-
-def decrypt(hexstring, rc):
-    decwords = []
-    words = hex_to_words(hexstring)
-    for i in range(math.ceil(len(words) / 2)):
-        A, B = rc.decrypt(words[i * 2], words[i * 2 + 1])
-        decwords.extend([A, B])
-    bits = words_to_bits(decwords)
-    return bits_to_msg(bits)
-
-
-def words_to_bits(words, w=16):
-    bits = 0
-    for i in range(len(words)):
-        bits += words[i] << i * w
-    return bits
-
-
-def bits_to_words(bits, w=16):
-    words = []
-    while bits > 0:
-        words.append(bits & (2 ** w - 1))
-        bits >>= w
-    return words
-
-
-def hex_to_words(hex, w=4):
-    words = []
-    hexwords = [hex[i:i + w] for i in range(0, len(hex), w)]
-    for i in hexwords:
-        words.append(int(i, 16))
-    return words
-
-
-def bits_to_msg(bits):
-    msg = ""
-    while bits > 0:
-        msg += chr(bits & (2 ** 8 - 1))
-        bits >>= 8
-    return msg
 
 
 def msg_to_bits(msg):
@@ -226,9 +171,7 @@ class ChatClient:
                     continue
 
                 rc = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
-                print(decrypt(data[:-1], rc))
-                print(data[:-1])
-                print("Received msg from " + from_user + ": ", decrypt(data[:-1], rc))
+                print("Received msg from " + from_user + ": ", rc.decrypt_msg(data[:-1]))
 
                 self.OK = False
                 t = threading.Thread(target=self.send_ack, args=(from_user,))
@@ -246,8 +189,7 @@ class ChatClient:
 
     def send_msg(self, user, msg, ack=False):
         rc = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
-        data = encrypt(msg, rc).encode()
-        print(msg, data)
+        data = rc.encrypt_msg(msg)
         data += b"\n"
         packet = set_header(data, 0, ack=ack)
         while not self.ACK[user]:
@@ -273,9 +215,6 @@ class ChatClient:
 
 
 if __name__ == '__main__':
-    # enc = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
-    # hexstring = encrypt("HELLO", enc)
-    # res = decrypt(hexstring, enc)
     chatClient = ChatClient()
     chatClient.start()
     while True and not chatClient.Quit:
