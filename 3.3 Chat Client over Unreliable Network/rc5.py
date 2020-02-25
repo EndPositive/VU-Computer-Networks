@@ -230,10 +230,38 @@ class rc5:
         return A, B
 
 
+def encrypt_msg(msg, rc):
+    msg = msg.encode()
+    padding = (4 - len(msg) % 4)
+    msg += bytes([padding]) * padding
+
+    enc = b''
+    for i in range(0, len(msg), 4):
+        A = int.from_bytes(msg[i: i + 2], 'big')
+        B = int.from_bytes(msg[i + 2: i + 4], 'big')
+        A, B = rc.encrypt(A, B)
+        enc += A.to_bytes(2, 'big')
+        enc += B.to_bytes(2, 'big')
+    return bytes(enc)
+
+
+def decrypt_msg(msg, rc):
+    enc = []
+    for i in range(0, len(msg), 4):
+        A = int.from_bytes(msg[i: i + 2], 'big')
+        B = int.from_bytes(msg[i + 2: i + 4], 'big')
+        A, B = rc.decrypt(A, B)
+        enc += A.to_bytes(2, 'big')
+        enc += B.to_bytes(2, 'big')
+
+    enc = bytes(enc)
+    return enc[:-enc[-1]].decode('utf8')
+
+
 if __name__ == "__main__":
-    rc5 = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
-    A, B = rc5.encrypt("h".encode()[0], 0)
-    print("")
-    A, B = rc5.decrypt(A, B)
-    print(chr(A), chr(B))
+    r = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
+    # A, B = rc5.encrypt("h".encode()[0], 0)
+    # print("")
+    # A, B = rc5.decrypt(A, B)
+    # print(chr(A), chr(B))
 
