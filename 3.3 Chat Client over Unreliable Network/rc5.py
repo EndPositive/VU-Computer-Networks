@@ -246,7 +246,7 @@ class rc5:
 
 
     def decrypt_msg(self, msg):
-        enc = []
+        enc = b''
         for i in range(0, len(msg), 4):
             A = int.from_bytes(msg[i: i + 2], 'big')
             B = int.from_bytes(msg[i + 2: i + 4], 'big')
@@ -254,7 +254,6 @@ class rc5:
             enc += A.to_bytes(2, 'big')
             enc += B.to_bytes(2, 'big')
 
-        enc = bytes(enc)
         return enc[:-enc[-1]].decode('utf8')
 
 
