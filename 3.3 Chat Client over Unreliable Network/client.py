@@ -48,10 +48,7 @@ def decrypt(hexstring, rc):
     decwords = []
     words = hex_to_words(hexstring)
     for i in range(math.ceil(len(words) / 2)):
-        try:
-            A, B = rc.decrypt(words[i * 2], words[i * 2 + 1])
-        except IndexError:
-            A, B = rc.decrypt(words[i * 2], 0)
+        A, B = rc.decrypt(words[i * 2], words[i * 2 + 1])
         decwords.extend([A, B])
     bits = words_to_bits(decwords)
     return bits_to_msg(bits)
@@ -229,6 +226,8 @@ class ChatClient:
                     continue
 
                 rc = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
+                print(decrypt(data[:-1], rc))
+                print(data[:-1])
                 print("Received msg from " + from_user + ": ", decrypt(data[:-1], rc))
 
                 self.OK = False
@@ -248,6 +247,7 @@ class ChatClient:
     def send_msg(self, user, msg, ack=False):
         rc = rc5([0x91, 0x5F, 0x46, 0x19, 0xBE, 0x41, 0xB2, 0x51, 0x63, 0x55, 0xA5, 0x01, 0x10, 0xA9, 0xCE, 0x91])
         data = encrypt(msg, rc).encode()
+        print(msg, data)
         data += b"\n"
         packet = set_header(data, 0, ack=ack)
         while not self.ACK[user]:
