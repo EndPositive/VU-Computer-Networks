@@ -230,32 +230,32 @@ class rc5:
         return A, B
 
 
-def encrypt_msg(msg, rc):
-    msg = msg.encode()
-    padding = (4 - len(msg) % 4)
-    msg += bytes([padding]) * padding
+    def encrypt_msg(self, msg):
+        msg = msg.encode()
+        padding = (4 - len(msg) % 4)
+        msg += bytes([padding]) * padding
 
-    enc = b''
-    for i in range(0, len(msg), 4):
-        A = int.from_bytes(msg[i: i + 2], 'big')
-        B = int.from_bytes(msg[i + 2: i + 4], 'big')
-        A, B = rc.encrypt(A, B)
-        enc += A.to_bytes(2, 'big')
-        enc += B.to_bytes(2, 'big')
-    return bytes(enc)
+        enc = b''
+        for i in range(0, len(msg), 4):
+            A = int.from_bytes(msg[i: i + 2], 'big')
+            B = int.from_bytes(msg[i + 2: i + 4], 'big')
+            A, B = self.encrypt(A, B)
+            enc += A.to_bytes(2, 'big')
+            enc += B.to_bytes(2, 'big')
+        return bytes(enc)
 
 
-def decrypt_msg(msg, rc):
-    enc = []
-    for i in range(0, len(msg), 4):
-        A = int.from_bytes(msg[i: i + 2], 'big')
-        B = int.from_bytes(msg[i + 2: i + 4], 'big')
-        A, B = rc.decrypt(A, B)
-        enc += A.to_bytes(2, 'big')
-        enc += B.to_bytes(2, 'big')
+    def decrypt_msg(self, msg):
+        enc = []
+        for i in range(0, len(msg), 4):
+            A = int.from_bytes(msg[i: i + 2], 'big')
+            B = int.from_bytes(msg[i + 2: i + 4], 'big')
+            A, B = self.decrypt(A, B)
+            enc += A.to_bytes(2, 'big')
+            enc += B.to_bytes(2, 'big')
 
-    enc = bytes(enc)
-    return enc[:-enc[-1]].decode('utf8')
+        enc = bytes(enc)
+        return enc[:-enc[-1]].decode('utf8')
 
 
 if __name__ == "__main__":
