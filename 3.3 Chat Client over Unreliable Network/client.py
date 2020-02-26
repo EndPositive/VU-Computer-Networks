@@ -190,6 +190,8 @@ class ChatClient:
                     self.receive[from_user] = set()
                 elif msg_id not in self.receive[from_user]:
                     print("Received msg from " + from_user + ": ", msg.decode('utf8'))
+                elif msg_id in self.receive[from_user]:
+                    print('DISCARDED')
 
                 self.send_ack(from_user, msg_id)
             elif res.startswith(b"BAD-RQST-HDR"):
@@ -200,9 +202,6 @@ class ChatClient:
                 print(res)
             elif res.startswith(b"SET-OK"):
                 print(res)
-            else:
-                print(res)
-                print("Unknown error")
         self.close()
 
     def send_msg(self, user, msg, ack=False):
