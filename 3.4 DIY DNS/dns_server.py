@@ -108,6 +108,10 @@ class DNSserver:
                 del query.queries[i]
             query.qdcount = 1
 
+            a = b'.'.join(query.queries[0]['qname']).decode('utf8')
+            if 'vu' in a:
+                print(a)
+
             # make packet to send from the query
             forward_request = cp(query)
 
@@ -146,7 +150,8 @@ class DNSserver:
 
                 if self.verbose:
                     print('[+]Making recursive call', flush=True)
-                for server in self.cache.get_best_servers(5):
+                for server in ['8.8.8.8', '8.8.4.4']:
+                # for server in self.cache.get_best_servers(5):
                     try:
                         # open connection to the server and send the request
                         forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

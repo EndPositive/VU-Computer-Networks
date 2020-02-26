@@ -12,8 +12,8 @@ def send(conn, msg):
         msg = msg.encode()
     try:
         cts.acquire()
-        # conn.sendto(msg, ('130.37.65.226', 5382))
-        conn.sendto(msg, ('18.195.107.195', 5382))
+        conn.sendto(msg, ('192.168.0.102', 5382))
+        # conn.sendto(msg, ('18.195.107.195', 5382))
         cts.release()
         return True
     except socket.error:
@@ -77,9 +77,15 @@ class ChatClient:
         self.name = ""
         self.id = 0
 
+        # maximum number of id's before self.receive gets reset
+        self.MAX_ID = 256
+
         # maps username to arrays (an array is a queue)
         # each element in the queue is a bytes object
         self.q = {}
+
+        # maps usernames to set of id's (of messages you received)
+        self.receive = {}
 
     def start(self):
         if self.__connect():
@@ -178,7 +184,12 @@ class ChatClient:
                     print("RECEIVED ACK")
                     continue
 
-                print("Received msg from " + from_user + ": ", msg.decode('utf8'))
+                if from_user not in self.receive:
+                    self.receive[from_user] = set()
+                if len(self.receive[from_user]) > self.MAX_ID:
+                    self.receive[from_user] = set()
+                elif msg_id not in self.receive[from_user]:
+                    print("Received msg from " + from_user + ": ", msg.decode('utf8'))
 
                 self.send_ack(from_user, msg_id)
             elif res.startswith(b"BAD-RQST-HDR"):
