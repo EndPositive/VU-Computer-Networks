@@ -1,66 +1,6 @@
 from rc5 import rotate_left, rotate_right
 
 
-def sha1(msg):
-    MAX32 = (1 << 32) - 1
-    h0 = 0x67452301
-    h1 = 0xEFCDAB89
-    h2 = 0x98BADCFE
-    h3 = 0x10325476
-    h4 = 0xC3D2E1F0
-
-    # preprocessing
-    l = len(msg)
-    msg += b'\x80'
-    msg += b'\x00' * (56 - (len(msg) % 56))
-    msg += l.to_bytes(8, 'big')
-
-    # for each chunk
-    for j in range(0, len(msg), 64):
-        chunk = msg[j: j + 64]
-        w = [0] * 80
-        for i in range(16):
-            w[i] = int.from_bytes(chunk[4 * i: 4 * (i + 1)], 'big')
-
-        for i in range(16, 80):
-            w[i] = rotate_left(w[i - 3] ^ w[i-8] ^ w[i-14] ^ w[i-16], 1, 32)
-
-        a = h0
-        b = h1
-        c = h2
-        d = h3
-        e = h4
-
-        for i in range(80):
-            if i < 20:
-                f = (b & c) | ((~b) & d)
-                k = 0x5A827999
-            elif i < 40:
-                f = b ^ c ^ d
-                k = 0x6ED9EBA1
-            elif i < 60:
-                f = (b & c) | (b & d) | (c & d)
-                k = 0x8F1BBCDC
-            else:
-                f = b ^ c ^ d
-                k = 0xCA62C1D6
-
-            temp = (rotate_left(a, 5, 32) + f + e + k + w[i]) & MAX32
-            e = d
-            d = c
-            c = rotate_left(b, 30, 32)
-            b = a
-            a = temp
-
-        h0 = (h0 + a) & MAX32
-        h1 = (h1 + b) & MAX32
-        h2 = (h2 + c) & MAX32
-        h3 = (h3 + d) & MAX32
-        h4 = (h4 + e) & MAX32
-
-    return h0.to_bytes(4, 'big') + h1.to_bytes(4, 'big') + h2.to_bytes(4, 'big') + h3.to_bytes(4, 'big') + h4.to_bytes(4, 'big')
-
-
 def sha256(msg):
     MAX32 = (1 << 32) - 1
 
@@ -156,4 +96,3 @@ def pbkdf2(func, password, salt=None, n_iterations=256):
     for _ in range(n_iterations):
         password = func(xor(password, salt))
     return password
-
