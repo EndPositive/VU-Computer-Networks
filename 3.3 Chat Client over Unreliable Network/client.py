@@ -134,8 +134,13 @@ class ChatClient:
                     print('WTF ARE YOU DOING?')
                     continue
                 self.send_msg(user, msg)
-            else:
+            elif spl[0] == "SET":
                 send(self.__socket, inp)
+            elif spl[0] == "RESET":
+                send(self.__socket, inp)
+            elif spl[0] == "GET":
+                send(self.__socket, inp)
+            else:
                 print("Unknown command")
         self.close()
 
@@ -154,6 +159,7 @@ class ChatClient:
             elif res.startswith(b"UNKNOWN"):
                 print("User is not online.")
             elif res.startswith(b"DELIVERY"):
+                print("REC")
                 spl = res.split(b' ', 2)
 
                 from_user = spl[1].decode('utf8')
@@ -179,7 +185,12 @@ class ChatClient:
                 print("Unknown command.")
             elif res.startswith(b"BAD-RQST-BODY"):
                 print("Bad parameters")
+            elif res.startswith(b"VALUE"):
+                print(res)
+            elif res.startswith(b"SET-OK"):
+                print(res)
             else:
+                print(res)
                 print("Unknown error")
         self.close()
 
