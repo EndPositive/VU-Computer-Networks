@@ -51,7 +51,7 @@ def get_crc(m, p=0xb):
 
 
 def set_header(msg, msg_id, ack=False):
-    header = msg_id.to_bytes(1, 'big') + (ack << 7).to_bytes(1, 'big')
+    header = (msg_id % 256).to_bytes(1, 'big') + (ack << 7).to_bytes(1, 'big')
     return get_crc(header + msg).to_bytes(1, 'big') + header + msg
 
 
@@ -75,6 +75,7 @@ class ChatClient:
         self.Quit = False
 
         self.name = ""
+        self.id = 0
 
         # maps username to arrays (an array is a queue)
         # each element in the queue is a bytes object
@@ -114,7 +115,7 @@ class ChatClient:
 
     def __push(self):
         while True and not self.Quit:
-            inp = input("\n")
+            inp = input()
             if not inp:
                 continue
 
@@ -164,13 +165,16 @@ class ChatClient:
 
                 # check if the ack is set in the header
                 if ack_flag:
-                    self.q[from_user] = self.q[from_user][1:]
+                    for i in range(len(self.q[from_user])):
+                        if self.q[from_user][i][1] == msg_id:
+                            del self.q[from_user][i]
+                            break
                     print("RECEIVED ACK")
                     continue
 
                 print("Received msg from " + from_user + ": ", msg.decode('utf8'))
 
-                self.send_ack(from_user)
+                self.send_ack(from_user, msg_id)
             elif res.startswith(b"BAD-RQST-HDR"):
                 print("Unknown command.")
             elif res.startswith(b"BAD-RQST-BODY"):
@@ -184,22 +188,24 @@ class ChatClient:
             msg = msg.encode('utf8')
 
         msg += b"\n"
-        msg = set_header(msg, 0, ack=ack)
+        msg_id = self.id
+        self.id += 1
+        msg = set_header(msg, msg_id, ack=ack)
         if user not in self.q:
             self.q[user] = []
         if not self.q[user]:
-            self.q[user].append(msg)
+            self.q[user].append([msg, msg_id])
             t = threading.Thread(target=self.queue_send, args=(user,))
             t.daemon = True
             t.start()
         else:
             self.q[user].append(msg)
 
-    def send_ack(self, user):
+    def send_ack(self, user, msg_id):
         if type(user) == str:
             user = user.encode('utf8')
 
-        msg = set_header(b'\n', 0, ack=True)
+        msg = set_header(b'\n', msg_id, ack=True)
         send(self.__socket, b"SEND " + user + b" " + msg)
         print("SENT ACK")
         return True
@@ -207,7 +213,7 @@ class ChatClient:
     def queue_send(self, user):
         while self.q[user]:
             try:
-                msg = self.q[user][0]
+                msg = self.q[user][0][0]
             except IndexError:
                 continue
 
