@@ -210,9 +210,6 @@ class ChatClient:
                 msg = self.q[user][0]
             except IndexError:
                 continue
-            except:
-                print("VERY BIG PROBLEMO")
-                continue
 
             send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg)
             print("SENT MSG")
