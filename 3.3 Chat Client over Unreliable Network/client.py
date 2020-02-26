@@ -2,13 +2,19 @@ import socket
 import threading
 import time
 
+cts = threading.Lock()
+
 
 def send(conn, msg):
+    global cts
     if type(msg) == str:
         msg += '\n'
-        msg = msg.encode('utf8')
+        msg = msg.encode()
     try:
+        cts.acquire()
+        # conn.sendto(msg, ('130.37.65.226', 5382))
         conn.sendto(msg, ('18.195.107.195', 5382))
+        cts.release()
         return True
     except socket.error:
         return False
@@ -67,12 +73,12 @@ class ChatClient:
         self.__pullThread.setDaemon(True)
 
         self.Quit = False
-        self.__Wait = 0
 
         self.name = ""
-        # ACK maps username to boolean values meaning if they sent us an ack after we sent them a message
-        self.ACK = {}
-        self.OK = False
+
+        # maps username to arrays (an array is a queue)
+        # each element in the queue is a bytes object
+        self.q = {}
 
     def start(self):
         if self.__connect():
@@ -108,10 +114,7 @@ class ChatClient:
 
     def __push(self):
         while True and not self.Quit:
-            if self.__Wait != 0:
-                continue
-
-            inp = input("\n$ ")
+            inp = input("\n")
             if not inp:
                 continue
 
@@ -119,22 +122,19 @@ class ChatClient:
             if spl[0] == "!quit":
                 self.Quit = True
             elif spl[0] == "!who":
-                self.__Wait = 1
                 if not send(self.__socket, 'WHO'):
                     print("Something went wrong.\nDisconnecting from host...")
                     self.Quit = True
             elif inp[0] == "@":
                 user = spl[0][1:]
-                msg = spl[1]
-                if user == "echobot" or user == self.name:
-                    self.__Wait = 2
-                else:
-                    self.__Wait = 1
-                self.ACK[user] = False
-                if not self.send_msg(user, msg):
-                    print("Something went wrong.\nDisconnecting from host...")
-                    self.Quit = True
+                try:
+                    msg = spl[1]
+                except IndexError:
+                    print('WTF ARE YOU DOING?')
+                    continue
+                self.send_msg(user, msg)
             else:
+                send(self.__socket, inp)
                 print("Unknown command")
         self.close()
 
@@ -149,7 +149,7 @@ class ChatClient:
             if res.startswith(b"WHO-OK"):
                 print("Online users: ", res[7:-1].decode('utf8'))
             elif res.startswith(b"SEND-OK"):
-                self.OK = True
+                pass
             elif res.startswith(b"UNKNOWN"):
                 print("User is not online.")
             elif res.startswith(b"DELIVERY"):
@@ -164,24 +164,19 @@ class ChatClient:
 
                 # check if the ack is set in the header
                 if ack_flag:
-                    self.ACK[from_user] = True
+                    self.q[from_user] = self.q[from_user][1:]
                     print("RECEIVED ACK")
                     continue
 
                 print("Received msg from " + from_user + ": ", msg.decode('utf8'))
 
-                self.OK = False
-                t = threading.Thread(target=self.send_ack, args=(from_user,))
-                t.start()
+                self.send_ack(from_user)
             elif res.startswith(b"BAD-RQST-HDR"):
                 print("Unknown command.")
             elif res.startswith(b"BAD-RQST-BODY"):
                 print("Bad parameters")
             else:
                 print("Unknown error")
-
-            self.__Wait -= 1
-
         self.close()
 
     def send_msg(self, user, msg, ack=False):
@@ -190,22 +185,38 @@ class ChatClient:
 
         msg += b"\n"
         msg = set_header(msg, 0, ack=ack)
-        while not self.ACK[user]:
-            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg)
-            print("SENT MSG")
-            time.sleep(.5)
-        return True
+        if user not in self.q:
+            self.q[user] = []
+        if not self.q[user]:
+            self.q[user].append(msg)
+            t = threading.Thread(target=self.queue_send, args=(user,))
+            t.daemon = True
+            t.start()
+        else:
+            self.q[user].append(msg)
 
     def send_ack(self, user):
         if type(user) == str:
             user = user.encode('utf8')
 
         msg = set_header(b'\n', 0, ack=True)
-        while not self.OK:
-            send(self.__socket, b"SEND " + user + b" " + msg)
-            print("SENT ACK")
-            time.sleep(0.5)
+        send(self.__socket, b"SEND " + user + b" " + msg)
+        print("SENT ACK")
         return True
+
+    def queue_send(self, user):
+        while self.q[user]:
+            try:
+                msg = self.q[user][0]
+            except IndexError:
+                continue
+            except:
+                print("VERY BIG PROBLEMO")
+                continue
+
+            send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg)
+            print("SENT MSG")
+            time.sleep(.5)
 
     def close(self, code=0):
         self.__socket.close()
