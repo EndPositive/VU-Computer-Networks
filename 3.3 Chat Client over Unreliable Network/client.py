@@ -169,7 +169,11 @@ class ChatClient:
                 spl = res.split(b' ', 2)
 
                 from_user = spl[1].decode('utf8')
-                crc_check, msg_id, ack_flag, msg = get_header(spl[2])
+                try:
+                    crc_check, msg_id, ack_flag, msg = get_header(spl[2])
+                except IndexError:
+                    print('Incorrect header')
+                    continue
 
                 if not crc_check:
                     print("INCORRECT CRC")
