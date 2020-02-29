@@ -262,6 +262,7 @@ class ChatClient:
 
     def queue_send(self, user):
         # TODO: SOLVE BUG WHERE NAME xd YIELDS INCORRECT CRC?
+        # TODO: SOLVE BUG WHERE THE QUEUE CONTAINS messages instead of lists of [msg, msg_id, msg_type]
         while self.q[user]:
             try:
                 msg = self.q[user][0][0]
