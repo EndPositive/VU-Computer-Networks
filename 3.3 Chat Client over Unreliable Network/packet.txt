@@ -2,7 +2,7 @@
                                 1  1  1  1  1  1  1  1  1  1  2  2  2  2
   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5  6  7  8  9  0  1  2  3
 +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-|        CRC            |         MSG ID        |PT|          Z         |
+|        CRC            |         MSG ID        | PT  |        Z        |
 +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
 |                                                                       |
 /                                MESSAGE                                /
@@ -14,7 +14,8 @@ where:
 CRC             A 8 bit crc of the whole encrypted packet except the crc
                 field. Can be front padded with zero's.
 MSG ID:         A 8 bit value representing a message id
-PACKET TYPE:    A one bit field that specifies whether this packet is a
-                normal message (0), or an acknowledgment (1)
+PACKET TYPE:    A 2 bit field that specifies whether this packet is a
+                normal message (0), an acknowledgment (1), Diffie Hellman
+                parameter exchange (2) or disconnect (3).
 Z:              Reserved for the future. Should be 0'd out.
 MESSAGE:        A variable length message ending in '\n'.

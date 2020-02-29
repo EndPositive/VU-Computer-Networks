@@ -1,4 +1,4 @@
-from rc5 import rotate_left, rotate_right
+from rc5 import rotate_right
 
 
 def sha256(msg):
@@ -90,9 +90,12 @@ def xor(a, b):
     return bytes(res)
 
 
-def pbkdf2(func, password, salt=None, n_iterations=256):
+def pbkdf2(password, salt=None, n_iterations=100):
+    if type(password) == int:
+        password = password.to_bytes(256, 'big')
+
     if salt is None:
-        salt = b'1' * len(password)
+        salt = b'1' * 32
     for _ in range(n_iterations):
-        password = func(xor(password, salt))
+        password = sha256(xor(password, salt))
     return password

@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+from dh import DH
 
 cts = threading.Lock()
 
@@ -12,8 +13,8 @@ def send(conn, msg):
         msg = msg.encode()
     try:
         cts.acquire()
-        conn.sendto(msg, ('192.168.0.102', 5382))
-        # conn.sendto(msg, ('18.195.107.195', 5382))
+        # conn.sendto(msg, ('192.168.0.102', 5382))
+        conn.sendto(msg, ('18.195.107.195', 5382))
         cts.release()
         return True
     except socket.error:
@@ -50,16 +51,16 @@ def get_crc(m, p=0xb):
     return r
 
 
-def set_header(msg, msg_id, ack=False):
-    header = (msg_id % 256).to_bytes(1, 'big') + (ack << 7).to_bytes(1, 'big')
-    return get_crc(header + msg).to_bytes(1, 'big') + header + msg
+def set_header(msg, msg_id, msg_type=0):
+    header = (msg_id % 256).to_bytes(1, 'big') + (msg_type << 6).to_bytes(1, 'big')
+    return get_crc(header + msg).to_bytes(1, 'big') + header + msg + b'\n'
 
 
 def get_header(msg):
-    crc_check = msg[0] == get_crc(msg[1:])
+    crc_check = msg[0] == get_crc(msg[1:-1])
     msg_id = msg[1]
-    ack = (msg[2] & 0b10000000) > 0
-    return crc_check, msg_id, ack, msg[3:]
+    msg_type = msg[2] >> 6
+    return crc_check, msg_id, msg_type, msg[3:][:-1]
 
 
 class ChatClient:
@@ -75,7 +76,9 @@ class ChatClient:
         self.Quit = False
 
         self.name = ""
-        self.id = 0
+
+        # maps username to id
+        self.id = {}
 
         # maximum number of id's before self.receive gets reset
         self.MAX_ID = 256
@@ -86,6 +89,9 @@ class ChatClient:
 
         # maps usernames to set of id's (of messages you received)
         self.receive = {}
+
+        # maps usernames to a DH object with crypto information
+        self.dh = {}
 
     def start(self):
         if self.__connect():
@@ -165,12 +171,11 @@ class ChatClient:
             elif res.startswith(b"UNKNOWN"):
                 print("User is not online.")
             elif res.startswith(b"DELIVERY"):
-                print("REC")
                 spl = res.split(b' ', 2)
 
                 from_user = spl[1].decode('utf8')
                 try:
-                    crc_check, msg_id, ack_flag, msg = get_header(spl[2])
+                    crc_check, msg_id, msg_type, msg = get_header(spl[2])
                 except IndexError:
                     print('Incorrect header')
                     continue
@@ -179,8 +184,8 @@ class ChatClient:
                     print("INCORRECT CRC")
                     continue
 
-                # check if the ack is set in the header
-                if ack_flag:
+                # check if the message is an ack
+                if msg_type == 1:
                     for i in range(len(self.q[from_user])):
                         if self.q[from_user][i][1] == msg_id:
                             del self.q[from_user][i]
@@ -188,14 +193,24 @@ class ChatClient:
                     print("RECEIVED ACK")
                     continue
 
-                if from_user not in self.receive:
+                # reset the id set if necessary
+                if from_user not in self.receive or len(self.receive[from_user]) > self.MAX_ID:
                     self.receive[from_user] = set()
-                if len(self.receive[from_user]) > self.MAX_ID:
-                    self.receive[from_user] = set()
-                elif msg_id not in self.receive[from_user]:
+
+                # check if the message is DH exchange
+                if msg_type == 2 and msg_id not in self.receive[from_user]:
+                    if from_user not in self.dh:
+                        self.dh[from_user] = DH()
+                    self.dh[from_user].set_secret(msg)
+
+                    # reply with a DH of our own
+                    self.send_msg(from_user, self.dh[from_user].get_public_info(), msg_type=2)
+
+                # check if the message is a normal message
+                if msg_type == 0 and msg_id not in self.receive[from_user]:
+                    if from_user in self.dh:
+                        msg = self.dh[from_user].decrypt(msg)
                     print("Received msg from " + from_user + ": ", msg.decode('utf8'))
-                elif msg_id in self.receive[from_user]:
-                    print('DISCARDED')
 
                 self.send_ack(from_user, msg_id)
             elif res.startswith(b"BAD-RQST-HDR"):
@@ -208,18 +223,28 @@ class ChatClient:
                 print(res)
         self.close()
 
-    def send_msg(self, user, msg, ack=False):
+    def send_msg(self, user, msg, msg_type=0):
         if type(msg) == str:
             msg = msg.encode('utf8')
 
-        msg += b"\n"
-        msg_id = self.id
-        self.id += 1
-        msg = set_header(msg, msg_id, ack=ack)
+        if user not in self.id:
+            self.id[user] = 0
+
+        msg_id = self.id[user]
+        self.id[user] += 1
+
+        if msg_type == 0:
+            if user not in self.dh:
+                self.dh[user] = DH()
+
+            if self.dh[user].password is None:
+                # we need to make a DH exchange
+                self.send_msg(user, self.dh[user].get_public_info(), msg_type=2)
+
         if user not in self.q:
             self.q[user] = []
         if not self.q[user]:
-            self.q[user].append([msg, msg_id])
+            self.q[user].append([msg, msg_id, msg_type])
             t = threading.Thread(target=self.queue_send, args=(user,))
             t.daemon = True
             t.start()
@@ -230,20 +255,31 @@ class ChatClient:
         if type(user) == str:
             user = user.encode('utf8')
 
-        msg = set_header(b'\n', msg_id, ack=True)
+        msg = set_header(b'', msg_id, msg_type=1)
         send(self.__socket, b"SEND " + user + b" " + msg)
         print("SENT ACK")
         return True
 
     def queue_send(self, user):
+        # TODO: SOLVE BUG WHERE NAME xd YIELDS INCORRECT CRC?
         while self.q[user]:
             try:
                 msg = self.q[user][0][0]
+                msg_id = self.q[user][0][1]
+                msg_type = self.q[user][0][2]
             except IndexError:
                 continue
 
+            if msg_type == 0:
+                if user not in self.dh or self.dh[user].password is None:
+                    time.sleep(0.5)
+                    continue
+                msg = self.dh[user].encrypt(msg)
+
+            msg = set_header(msg, msg_id, msg_type)
+
             send(self.__socket, b"SEND " + user.encode('utf8') + b" " + msg)
-            print("SENT MSG")
+            print("SENT", msg)
             time.sleep(.5)
 
     def close(self, code=0):
