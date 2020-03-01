@@ -241,7 +241,7 @@ class ChatClient:
                             msg = self.dh[from_user].decrypt(msg)
                         print(from_user + ": ", msg.decode('utf8'))
 
-                    self.send_ack(from_user, msg_id)
+                self.send_ack(from_user, msg_id)
             elif res.startswith(b"BAD-RQST-HDR"):
                 print("Unknown command.")
             elif res.startswith(b"BAD-RQST-BODY"):
