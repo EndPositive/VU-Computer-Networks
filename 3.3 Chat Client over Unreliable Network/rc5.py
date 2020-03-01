@@ -73,7 +73,8 @@ class rc5:
         return A, B
 
     def encrypt_msg(self, msg):
-        msg = msg.encode()
+        if type(msg) == str:
+            msg = msg.encode()
         padding = (4 - len(msg) % 4)
         msg += bytes([padding]) * padding
 
@@ -95,7 +96,7 @@ class rc5:
             enc += A.to_bytes(2, 'big')
             enc += B.to_bytes(2, 'big')
 
-        return enc[:-enc[-1]].decode('utf8')
+        return enc[:-enc[-1]]
 
 
 if __name__ == "__main__":

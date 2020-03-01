@@ -51,6 +51,7 @@ class DH:
 
     def decrypt(self, msg):
         if self.password is None:
+            print('wtf')
             return msg
         return self.__rc5.decrypt_msg(msg)
 
