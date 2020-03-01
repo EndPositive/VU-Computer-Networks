@@ -229,6 +229,7 @@ class ChatClient:
 
                 # check for duplicates
                 if msg_id not in self.receive[from_user]:
+                    self.receive[from_user].add(msg_id)
                     if msg_type == 2 or msg_type == 3:
                         if from_user not in self.dh:
                             self.dh[from_user] = DH()
@@ -319,7 +320,7 @@ class ChatClient:
 
 
 if __name__ == '__main__':
-    chatClient = ChatClient()
+    chatClient = ChatClient(True)
     chatClient.start()
     while True and not chatClient.Quit:
         pass
