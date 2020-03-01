@@ -87,6 +87,7 @@ def get_header(msg):
     msg_type = msg[5] >> 5
     return crc_check, msg_id, msg_type, msg[6:]
 
+
 class ChatClient:
     def __init__(self, verbose=False):
         self.verbose = verbose
