@@ -39,6 +39,7 @@ def receive(conn, size):
 def escape(msg):
     return msg.replace(b'\x00', b'\x00\x00').replace(b'\n', b'\x00\x01')
 
+
 def unescape(msg):
     new_msg = b''
     i = 0
@@ -58,6 +59,7 @@ def unescape(msg):
 
     return new_msg
 
+
 def to_bits(msg):
     bits = 0
     for i in range(len(msg) - 1, -1, -1):
@@ -65,7 +67,7 @@ def to_bits(msg):
     return bits
 
 
-def get_crc(m, p=0xb):
+def get_crc(m, p=0x973afb51):
     r = to_bits(m) << (len(bin(p)) - 3)
     while len(bin(r)) >= len(bin(p)):
         d = p << len(bin(r)) - len(bin(p))
@@ -75,16 +77,15 @@ def get_crc(m, p=0xb):
 
 def set_header(msg, msg_id, msg_type=0):
     header = (msg_id % 256).to_bytes(1, 'big') + (msg_type << 5).to_bytes(1, 'big')
-    return escape(get_crc(header + msg).to_bytes(1, 'big') + header + msg) + b'\n'
+    return escape(get_crc(header + msg).to_bytes(4, 'big') + header + msg) + b'\n'
 
 
 def get_header(msg):
     msg = unescape(msg[:-1])
-    crc_check = msg[0] == get_crc(msg[1:])
-    msg_id = msg[1]
-    msg_type = msg[2] >> 5
-    return crc_check, msg_id, msg_type, msg[3:]
-
+    crc_check = msg[0:4] == get_crc(msg[4:]).to_bytes(4, 'big')
+    msg_id = msg[4]
+    msg_type = msg[5] >> 5
+    return crc_check, msg_id, msg_type, msg[6:]
 
 class ChatClient:
     def __init__(self, verbose=False):
