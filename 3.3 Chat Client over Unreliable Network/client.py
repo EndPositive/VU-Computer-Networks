@@ -53,6 +53,7 @@ def get_crc(m, p=0xb):
 
 def set_header(msg, msg_id, msg_type=0):
     header = (msg_id % 256).to_bytes(1, 'big') + (msg_type << 6).to_bytes(1, 'big')
+    print(get_crc(header + msg).to_bytes(1, 'big'))
     return get_crc(header + msg).to_bytes(1, 'big') + header + msg + b'\n'
 
 
@@ -249,7 +250,7 @@ class ChatClient:
             t.daemon = True
             t.start()
         else:
-            self.q[user].append(msg)
+            self.q[user].append([msg, msg_id, msg_type])
 
     def send_ack(self, user, msg_id):
         if type(user) == str:
@@ -261,8 +262,7 @@ class ChatClient:
         return True
 
     def queue_send(self, user):
-        # TODO: SOLVE BUG WHERE NAME xd YIELDS INCORRECT CRC?
-        # TODO: SOLVE BUG WHERE THE QUEUE CONTAINS messages instead of lists of [msg, msg_id, msg_type]
+        # TODO: SOLVE BUG WHERE \n byte in the message ends the transmission: maybe use byte stuffing
         while self.q[user]:
             try:
                 msg = self.q[user][0][0]
