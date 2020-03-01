@@ -325,5 +325,3 @@ if __name__ == '__main__':
     chatClient.start()
     while True and not chatClient.Quit:
         pass
-    # TODO: DISCONNECT SIGNAL
-    # TODO: SEND SALT
