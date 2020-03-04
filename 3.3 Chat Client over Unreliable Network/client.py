@@ -225,7 +225,7 @@ class ChatClient:
                     continue
 
                 # reset the id set if necessary
-                if from_user not in self.receive or len(self.receive[from_user]) > self.MAX_ID:
+                if from_user not in self.receive or (len(self.receive[from_user]) > self.MAX_ID and msg_id == 0):
                     self.receive[from_user] = set()
 
                 # check for duplicates
@@ -321,7 +321,7 @@ class ChatClient:
 
 
 if __name__ == '__main__':
-    chatClient = ChatClient(True)
+    chatClient = ChatClient(False)
     chatClient.start()
     while True and not chatClient.Quit:
         pass
