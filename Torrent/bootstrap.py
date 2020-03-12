@@ -4,16 +4,9 @@ from util import *
 
 
 def error(conn, num):
-    if num == 0:
-        packet = Packet()
-        packet.type = 5
-        packet.err = 0  # not found
-    elif num == 1:
-        packet = Packet()
-        packet.type = 5
-        packet.err = 0  # not found
-    else:
-        return
+    packet = Packet()
+    packet.type = 5
+    packet.err = num
     bytes = packet.to_bytes()
     send(conn, bytes)
 
@@ -33,21 +26,25 @@ class Bootstrap:
         self.connections = {}
 
     def start(self):
-        self.__socket.bind(('localhost', 65427))
+        self.__socket.bind(('localhost', 65426))
         self.__socket.listen()
 
-        self.__listen()
+        conn, addr = self.__socket.accept()
+        self.__listen(conn)
 
-    def __listen(self):
+    def __listen(self, conn):
         while True:
-            conn, addr = self.__socket.accept()
             res = receive(conn, 4096)
             if res:
                 packet = Packet(res)
                 print(packet.type)
                 if packet.type == 0:
                     if packet.hash in self.connections:
-                        self.connections[packet.hash].append(conn)
+                        if conn not in self.connections[packet.hash]:
+                            self.connections[packet.hash].append(conn)
+                        else:
+                            error(conn, 2)
+                            continue
                         by = packet.to_bytes()
                         send(conn, by)
                     else:
@@ -78,7 +75,7 @@ class Bootstrap:
                     pass
                 else:
                     print("Unknown type", res)
-            conn.close()
+        conn.close()
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ class Packet:
         if data is None:
             self.type = None
             self.hash = b'\x00' * 16
-            self.seeders = None
+            self.seeders = []
             self.err = None
             self.piece_no = None
             self.data = None
