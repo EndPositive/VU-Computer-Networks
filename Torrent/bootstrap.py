@@ -30,13 +30,14 @@ class Bootstrap:
         self.__socket.listen()
 
         while True:
+            print("Listening for client on 192.168.0.2")
             conn, addr = self.__socket.accept()
-            print(conn, addr)
-            pullThread = threading.Thread(target=self.__listen(conn))
+            pullThread = threading.Thread(target=self.__listen, args=(conn,))
             pullThread.setDaemon(True)
             pullThread.start()
 
     def __listen(self, conn):
+        print("Started thread for", conn)
         while True:
             res = receive(conn, 4096)
             if res:
