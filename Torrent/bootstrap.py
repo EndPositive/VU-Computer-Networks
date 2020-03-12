@@ -33,7 +33,7 @@ class Bootstrap:
         self.connections = {}
 
     def start(self):
-        self.__socket.bind(('localhost', 65432))
+        self.__socket.bind(('localhost', 65426))
         self.__socket.listen()
 
         self.__listen()
@@ -43,35 +43,45 @@ class Bootstrap:
             conn, addr = self.__socket.accept()
             res = receive(conn, 4096)
             if res:
-                try:
-                    packet = Packet(res)
-                    if packet.type == 0:
-                        if packet.hash in self.connections:
-                            self.connections[packet.hash].append(conn)
-                        else:
-                            error(conn, 0)
-                    elif packet.type == 1:
-                        if packet.hash in self.connections:
-                            self.connections[packet.hash].remove(conn)
-                        else:
-                            error(conn, 0)
-                    elif packet.type == 2:
-                        pass
-                    elif packet.type == 3:
-                        list_seeders(conn, self.connections[packet.hash])
-                    elif packet.type == 4:
-                        if packet.hash not in self.connections:
-                            self.connections[packet.hash] = []
-                        else:
-                            error(conn, 1)
-                    elif packet.type == 5:
-                        pass
-                    elif packet.type == 6:
-                        pass
-                    elif packet.type == 7:
-                        pass
+                packet = Packet(res)
+                if packet.type == 0:
+                    if packet.hash in self.connections:
+                        self.connections[packet.hash].append(conn)
+                        by = packet.to_bytes()
+                        send(conn, by)
                     else:
-                        print("Unknown type")
-                except:
+                        error(conn, 0)
+                elif packet.type == 1:
+                    if packet.hash in self.connections:
+                        self.connections[packet.hash].remove(conn)
+                        by = packet.to_bytes()
+                        send(conn, by)
+                    else:
+                        error(conn, 0)
+                elif packet.type == 2:
                     pass
+                elif packet.type == 3:
+                    list_seeders(conn, self.connections[packet.hash])
+                elif packet.type == 4:
+                    if packet.hash not in self.connections:
+                        self.connections[packet.hash] = []
+                        by = packet.to_bytes()
+                        send(conn, by)
+                    else:
+                        error(conn, 1)
+                elif packet.type == 5:
+                    pass
+                elif packet.type == 6:
+                    pass
+                elif packet.type == 7:
+                    pass
+                else:
+                    print("Unknown type")
+                pass
+            print("Something bad happend: ", res)
             conn.close()
+
+
+if __name__ == "__main__":
+    boot = Bootstrap()
+    boot.start()
