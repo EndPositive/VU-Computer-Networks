@@ -1,7 +1,7 @@
 import socket
 from packet import *
 from util import *
-
+import threading
 
 def error(conn, num):
     packet = Packet()
@@ -32,7 +32,9 @@ class Bootstrap:
         while True:
             conn, addr = self.__socket.accept()
             print(conn, addr)
-            self.__listen(conn)
+            pullThread = threading.Thread(target=self.__listen(conn))
+            pullThread.setDaemon(True)
+            pullThread.start()
 
     def __listen(self, conn):
         while True:
