@@ -9,16 +9,18 @@ class Client:
 
     def start(self):
         # Connect to bootstrap
-        self.__socket.connect(('localhost', 65426))
+        self.__socket.connect(('localhost', 65427))
         self.__push()
 
     def __push(self):
         packet = Packet()
         packet.type = 0
-        packet.hash = b'0' * 16
         by = packet.to_bytes()
         send(self.__socket, by)
         res = receive(self.__socket, 4096)
+        if not res:
+            print("Something bad happend: ", res)
+            return
         p = Packet(res)
         print(p.type)
 

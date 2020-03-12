@@ -15,6 +15,6 @@ def receive(conn, size):
         if not data:
             return False
         else:
-            return data.decode("utf-8")
+            return data
     except socket.error:
         return False

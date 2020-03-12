@@ -33,7 +33,7 @@ class Bootstrap:
         self.connections = {}
 
     def start(self):
-        self.__socket.bind(('localhost', 65426))
+        self.__socket.bind(('localhost', 65427))
         self.__socket.listen()
 
         self.__listen()
@@ -44,6 +44,7 @@ class Bootstrap:
             res = receive(conn, 4096)
             if res:
                 packet = Packet(res)
+                print(packet.type)
                 if packet.type == 0:
                     if packet.hash in self.connections:
                         self.connections[packet.hash].append(conn)
@@ -76,9 +77,7 @@ class Bootstrap:
                 elif packet.type == 7:
                     pass
                 else:
-                    print("Unknown type")
-                pass
-            print("Something bad happend: ", res)
+                    print("Unknown type", res)
             conn.close()
 
 

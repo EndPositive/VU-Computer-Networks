@@ -7,7 +7,7 @@ class Packet:
     def __init__(self, data=None):
         if data is None:
             self.type = None
-            self.hash = None
+            self.hash = b'\x00' * 16
             self.seeders = None
             self.err = None
             self.piece_no = None
@@ -51,7 +51,7 @@ class Packet:
                 data += seeder[0]
                 data += seeder[1]
         elif self.type == 5:
-            data += self.err
+            data += self.err.to_bytes(1, 'big')
         elif self.type == 6:
             data += self.piece_no.to_bytes(4, 'big')
         elif self.type == 7:
