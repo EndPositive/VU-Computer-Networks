@@ -29,8 +29,10 @@ class Bootstrap:
         self.__socket.bind(('192.168.0.2', 65400))
         self.__socket.listen()
 
-        conn, addr = self.__socket.accept()
-        self.__listen(conn)
+        while True:
+            conn, addr = self.__socket.accept()
+            print(conn, addr)
+            self.__listen(conn)
 
     def __listen(self, conn):
         while True:
@@ -78,6 +80,8 @@ class Bootstrap:
                     pass
                 else:
                     print("Unknown type", res)
+            else:
+                break
         conn.close()
 
 
