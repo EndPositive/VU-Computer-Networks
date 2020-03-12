@@ -26,7 +26,7 @@ class Bootstrap:
         self.connections = {}
 
     def start(self):
-        self.__socket.bind(('localhost', 65426))
+        self.__socket.bind(('192.168.0.2', 65400))
         self.__socket.listen()
 
         conn, addr = self.__socket.accept()

@@ -10,7 +10,7 @@ class Client:
 
     def start(self):
         # Connect to bootstrap
-        self.__socket.connect(('localhost', 65426))
+        self.__socket.connect(('80.112.140.14', 65400))
         self.__push()
 
     def __push(self):
