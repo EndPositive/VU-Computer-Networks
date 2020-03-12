@@ -49,6 +49,7 @@ class Bootstrap:
                         send(conn, by)
                     else:
                         error(conn, 0)
+                        continue
                 elif packet.type == 1:
                     if packet.hash in self.connections:
                         self.connections[packet.hash].remove(conn)
@@ -56,6 +57,7 @@ class Bootstrap:
                         send(conn, by)
                     else:
                         error(conn, 0)
+                        continue
                 elif packet.type == 2:
                     pass
                 elif packet.type == 3:
@@ -67,6 +69,7 @@ class Bootstrap:
                         send(conn, by)
                     else:
                         error(conn, 1)
+                        continue
                 elif packet.type == 5:
                     pass
                 elif packet.type == 6:
