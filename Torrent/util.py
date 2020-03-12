@@ -1,9 +1,9 @@
 import socket
 
 
-def send(conn, msg):
+def send(conn, data):
     try:
-        conn.sendall(msg.encode('utf-8'))
+        conn.sendall(data)
         return True
     except socket.error:
         return False
