@@ -1,4 +1,5 @@
 import socket
+import copy
 import threading
 from packet import *
 from util import *
@@ -61,12 +62,12 @@ class Bootstrap:
     def __ping(self):
         packet = Packet()
         packet.type = 2
-        connections = self.connections
+        connections = copy.deepcopy(self.connections)
         while True:
             for hash in connections:
                 self.connections[hash] = []
                 for conn in connections[hash]:
-                    send(self.__socket, packet, conn)
+                    send(self.__socket, packet.to_bytes(), conn)
             # Ping every 15 seconds. NAT's remove entries after
             # about 60sec but it varies....
             time.sleep(15)
