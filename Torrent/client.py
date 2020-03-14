@@ -1,6 +1,7 @@
 import threading
 from packet import *
 from util import *
+from file_manager import *
 
 
 class Client:
@@ -83,13 +84,11 @@ class Client:
     def push_sign_in(self, data):
         packet = Packet()
         packet.type = 0
-        # packet.hash = b"0x00" * 16
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_sign_out(self, data):
         packet = Packet()
         packet.type = 1
-        # packet.hash = b"0x00" * 16
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_list(self, data):
@@ -101,8 +100,8 @@ class Client:
     def push_create(self, data):
         packet = Packet()
         packet.type = 4
-        # file = " ".split(data)[1]
-        # packet.hash = md5(file)
+        f = File(data.split(" ")[1], 10)
+        packet.hash = f.hash_file()
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_download(self, data):
