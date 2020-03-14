@@ -14,6 +14,9 @@ class Bootstrap:
         self.__socket.bind(('192.168.0.2', 65400))
 
         print("Listening for client on 192.168.0.2")
+        pingt = threading.Thread(target=self.__ping)
+        pingt.setDaemon(True)
+        pingt.start()
         self.__listen(self.__socket)
 
     def __listen(self, sock):
@@ -60,6 +63,9 @@ class Bootstrap:
                 self.connections[hash] = []
                 for conn in connections[hash]:
                     send(self.__socket, packet, conn)
+            # Ping every 15 seconds. NAT's remove entries after
+            # about 60sec but it varies....
+            time.sleep(15)
 
     def pull_sign_in(self, packet, conn):
         if packet.hash in self.connections:
