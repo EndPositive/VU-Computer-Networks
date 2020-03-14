@@ -33,7 +33,7 @@ class Client:
             elif "download" in inp:
                 self.push_download(inp)
             elif "punch" in inp:
-                self.push_punch()
+                self.push_punch(inp)
                 continue
             else:
                 print("unknown command")
@@ -110,7 +110,10 @@ class Client:
         packet.piece_no = " ".split(data)[2]
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
-    def push_punch(self, to_be_punched):
+    def push_punch(self, data):
+        data = data.split(" ")
+        to_be_punched = (data[0], int(data[2]))
+
         punch_packet = Packet()
         punch_packet.type = 8
         punch_packet.seeders[0] = to_be_punched
