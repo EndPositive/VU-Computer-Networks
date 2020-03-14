@@ -33,7 +33,7 @@ class Packet:
         if self.type == 3:
             self.seeders = []
             while len(data) >= index + 6:
-                self.seeders.append(addr_from_bytes((data[index: index + 4], data[index + 4: index + 6])))
+                self.seeders.append(addr_from_bytes(data[index: index + 6]))
                 index += 6
         elif self.type == 5:
             self.err = int.from_bytes(data[index:], 'big')
@@ -59,7 +59,7 @@ class Packet:
                 if self.verbose:
                     print("No data in the punch packet")
                 raise MalformedFrameError
-            self.seeders.append(addr_from_bytes((data[index: index + 4], data[index + 4: index + 6])))
+            self.seeders.append(addr_from_bytes(data[index: index + 6]))
 
     def to_bytes(self):
         data = b''
