@@ -169,6 +169,7 @@ class Client:
         packet.type = 9
         send(self.__socket, packet.to_bytes(), conn)
         time.sleep(.5)
+        print("> ")
 
 
 if __name__ == "__main__":
