@@ -1,4 +1,5 @@
 import socket
+import copy
 import threading
 from packet import *
 from util import *
@@ -61,7 +62,7 @@ class Bootstrap:
     def __ping(self):
         packet = Packet()
         packet.type = 2
-        connections = self.connections
+        connections = copy.deepcopy(self.connections)
         while True:
             for hash in connections:
                 self.connections[hash] = []
