@@ -51,6 +51,9 @@ class Bootstrap:
             # DOWNLOAD OF PIECE
             elif packet.type == 7:
                 pass
+            # REQUEST HOLE PUNCH
+            elif packet.type == 8:
+                self.pull_punch(packet, conn)
             else:
                 print("Unknown type", res)
         conn.close()
@@ -101,6 +104,11 @@ class Bootstrap:
         packet.type = 5
         packet.err = num
         send(self.__socket, packet.to_bytes(), conn)
+
+    def pull_punch(self, packet, to_be_punched):
+        to_punch = packet.seeders[0]
+        packet.seeders[0] = to_be_punched
+        send(self.__socket, packet.to_bytes(), to_punch)
 
 
 if __name__ == "__main__":

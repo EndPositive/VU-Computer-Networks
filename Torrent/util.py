@@ -25,12 +25,6 @@ def receive(sock, size):
         return False
 
 
-def punch(sock, conn):
-    while True:
-        send(sock, b"PUNCH", conn)
-        time.sleep(.5)
-
-
 def addr_to_bytes(addr):
     ip = addr[0]
     port = addr[1]
