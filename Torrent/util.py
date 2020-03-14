@@ -1,6 +1,6 @@
 import socket
 import time
-
+from hashlib import md5
 
 def send(sock, data, conn):
     try:
@@ -47,3 +47,12 @@ def addr_from_bytes(addr):
     new_ip = '.'.join([str(x) for x in list(ip)])
     new_port = int.from_bytes(port, 'big')
     return new_ip, new_port
+
+def hash_file(file_name, max_read_size=1000000, function=md5):
+    h = function()
+    with open(file_name, 'rb') as f:
+        text = f.read(max_read_size)
+        while text:
+            h.update(text)
+            text = f.read(max_read_size)
+    return h.digest()
