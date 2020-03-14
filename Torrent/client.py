@@ -53,7 +53,7 @@ class Client:
 
     def __pull(self):
         while True:
-            res = receive(self.__socket, 4096)
+            res, conn = receive(self.__socket, 4096)
             if not res:
                 print("Something bad happend: ", res)
                 return

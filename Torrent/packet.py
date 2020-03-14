@@ -15,7 +15,7 @@ class Packet:
             return
 
         if len(data) < 17:
-            print("Incorrect length")
+            print("Incorrect length", len(data), data)
             raise MalformedFrameError()
 
         self.type = data[0]
