@@ -45,6 +45,6 @@ def addr_from_bytes(addr):
     ip = addr[0]
     port = addr[1]
 
-    new_ip = '.'.join([str(x) for x in list(addr[0])])
+    new_ip = '.'.join([str(x) for x in list(ip)])
     new_port = int.from_bytes(port, 'big')
     return new_ip, new_port
