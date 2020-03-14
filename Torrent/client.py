@@ -116,7 +116,7 @@ class Client:
 
         punch_packet = Packet()
         punch_packet.type = 8
-        punch_packet.seeders[0] = to_be_punched
+        punch_packet.seeders.append(to_be_punched)
         send(self.__socket, punch_packet.to_bytes(), self.conn_bootstrap)
         while True:
             send(self.__socket, punch_packet.to_bytes(), to_be_punched)
