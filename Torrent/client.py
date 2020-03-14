@@ -22,24 +22,16 @@ class Client:
     def __push(self):
         while True:
             inp = input("> ")
-            packet = Packet()
             if "!seed" in inp:
-                packet.type = 1
-                # packet.hash = " ".split(inp)[1]
+                self.push_sign_out(inp)
             elif "seed" in inp:
-                packet.type = 0
-                # packet.hash = " ".split(inp)[1]
+                self.push_sign_in(inp)
             elif "list" in inp:
-                packet.type = 3
-                # packet.hash = " ".split(inp)[1]
+                self.push_list(inp)
             elif "create" in inp:
-                # file = " ".split(inp)[1]
-                packet.type = 4
-                # packet.hash = md5(file)
+                self.push_create(inp)
             elif "download" in inp:
-                packet.type = 6
-                # packet.hash = " ".split(inp)[1]
-                packet.piece_no = " ".split(inp)[2]
+                self.push_download(inp)
             elif "punch" in inp:
                 punch(self.__socket, (inp.split(" ")[1], int(inp.split(" ")[2])))
                 continue
@@ -47,8 +39,6 @@ class Client:
                 print("unknown command")
                 return
 
-            by = packet.to_bytes()
-            send(self.__socket, by, self.conn)
             time.sleep(0.2)
 
     def __pull(self):
@@ -59,6 +49,38 @@ class Client:
                 return
             p = Packet(res)
             print(p.type)
+
+    def push_sign_in(self, data):
+        packet = Packet()
+        packet.type = 0
+        # packet.hash = b"0x00" * 16
+        send(self.__socket, packet.to_bytes(), self.conn)
+
+    def push_sign_out(self, data):
+        packet = Packet()
+        packet.type = 1
+        # packet.hash = b"0x00" * 16
+        send(self.__socket, packet.to_bytes(), self.conn)
+
+    def push_list(self, data):
+        packet = Packet()
+        packet.type = 3
+        # packet.hash = b"0x00" * 16
+        send(self.__socket, packet.to_bytes(), self.conn)
+
+    def push_create(self, data):
+        packet = Packet()
+        packet.type = 4
+        # file = " ".split(data)[1]
+        # packet.hash = md5(file)
+        send(self.__socket, packet.to_bytes(), self.conn)
+
+    def push_download(self, data):
+        packet = Packet()
+        packet.type = 6
+        # packet.hash = " ".split(data)[1]
+        packet.piece_no = " ".split(data)[2]
+        send(self.__socket, packet.to_bytes(), self.conn)
 
 
 if __name__ == "__main__":

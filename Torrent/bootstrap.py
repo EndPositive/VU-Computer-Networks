@@ -3,20 +3,6 @@ from packet import *
 from util import *
 
 
-def error(sock, num, conn):
-    packet = Packet()
-    packet.type = 5
-    packet.err = num
-    send(sock, packet.to_bytes(), conn)
-
-
-def list_seeders(sock, connections, conn):
-    packet = Packet()
-    packet.type = 3
-    packet.seeders = connections
-    send(sock, packet.to_bytes(), conn)
-
-
 class Bootstrap:
     def __init__(self):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -33,59 +19,81 @@ class Bootstrap:
     def __listen(self, sock):
         while True:
             res, conn = receive(sock, 4096)
-            if res:
-                packet = Packet(res)
-                p = Packet()
-                print(packet.type)
-                if packet.type == 0:
-                    if packet.hash in self.connections:
-                        if conn not in self.connections[packet.hash]:
-                            self.connections[packet.hash].append(conn)
-                        else:
-                            error(sock, 2, conn)
-                            continue
-                        p.type = packet.type
-                        p.hash = packet.hash
-                        by = p.to_bytes()
-                        send(sock, by, conn)
-                    else:
-                        error(sock, 0, conn)
-                        continue
-                elif packet.type == 1:
-                    if packet.hash in self.connections:
-                        self.connections[packet.hash].remove(conn)
-                        p.type = packet.type
-                        p.hash = packet.hash
-                        by = p.to_bytes()
-                        send(sock, by, conn)
-                    else:
-                        error(sock, 0, conn)
-                        continue
-                elif packet.type == 2:
-                    pass
-                elif packet.type == 3:
-                    list_seeders(sock, self.connections[packet.hash], conn)
-                elif packet.type == 4:
-                    if packet.hash not in self.connections:
-                        self.connections[packet.hash] = []
-                        p.type = packet.type
-                        p.hash = packet.hash
-                        by = p.to_bytes()
-                        send(sock, by, conn)
-                    else:
-                        error(sock, 1, conn)
-                        continue
-                elif packet.type == 5:
-                    pass
-                elif packet.type == 6:
-                    pass
-                elif packet.type == 7:
-                    pass
-                else:
-                    print("Unknown type", res)
-            else:
+            if not res:
                 break
+            packet = Packet(res)
+            print(packet.type)
+            # SIGN IN
+            if packet.type == 0:
+                self.pull_sign_in(packet, conn)
+            # SIGN OUT
+            elif packet.type == 1:
+                self.pull_sign_out(packet, conn)
+            # PING
+            elif packet.type == 2:
+                pass
+            # LIST SEEDERS
+            elif packet.type == 3:
+                self.pull_list(packet, conn)
+            # CREATE HASH/TORRENT
+            elif packet.type == 4:
+                self.pull_create(packet, conn)
+            # ERROR MESSAGE
+            elif packet.type == 5:
+                pass
+            # REQUEST FOR DOWNLOAD
+            elif packet.type == 6:
+                pass
+            # DOWNLOAD OF PIECE
+            elif packet.type == 7:
+                pass
+            else:
+                print("Unknown type", res)
         conn.close()
+
+    def __ping(self):
+        packet = Packet()
+        packet.type = 2
+        connections = self.connections
+        while True:
+            for hash in connections:
+                self.connections[hash] = []
+                for conn in connections[hash]:
+                    send(self.__socket, packet, conn)
+
+    def pull_sign_in(self, packet, conn):
+        if packet.hash in self.connections:
+            if conn not in self.connections[packet.hash]:
+                self.connections[packet.hash].append(conn)
+            else:
+                self.pull_error(packet, conn, 2)
+                return
+            send(self.__socket, packet.to_bytes(), conn)
+        else:
+            self.pull_error(packet, conn, 0)
+
+    def pull_sign_out(self, packet, conn):
+        if packet.hash in self.connections:
+            self.connections[packet.hash].remove(conn)
+            send(self.__socket, packet.to_bytes(), conn)
+        else:
+            self.pull_error(packet, conn, 0)
+
+    def pull_list(self, packet, conn):
+        packet.seeders = self.connections[packet.hash]
+        send(self.__socket, packet.to_bytes(), conn)
+
+    def pull_create(self, packet, conn):
+        if packet.hash not in self.connections:
+            self.connections[packet.hash] = []
+            send(self.__socket, packet.to_bytes(), conn)
+        else:
+            self.pull_error(packet, conn, 1)
+
+    def pull_error(self, packet, conn, num):
+        packet.type = 5
+        packet.err = num
+        send(self.__socket, packet.to_bytes(), conn)
 
 
 if __name__ == "__main__":
