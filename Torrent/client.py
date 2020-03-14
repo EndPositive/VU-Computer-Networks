@@ -7,6 +7,7 @@ class Client:
     def __init__(self):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.conn_bootstrap = ('80.112.140.14', 65400)
+        self.punched = False
 
     def start(self):
         # Connect to bootstrap
@@ -118,7 +119,9 @@ class Client:
         punch_packet.type = 8
         punch_packet.seeders.append(to_be_punched)
         send(self.__socket, punch_packet.to_bytes(), self.conn_bootstrap)
-        while True:
+
+        self.punched = False
+        while True and not self.punched:
             send(self.__socket, punch_packet.to_bytes(), to_be_punched)
             time.sleep(.5)
 
@@ -136,8 +139,13 @@ class Client:
             print("Received punch request")
             to_be_punched = packet.seeders[0]
             send(self.__socket, packet.to_bytes(), to_be_punched)
-        else:
+        # If its an actual punch and we have not been punched yet
+        elif not self.punched:
+            self.punched = True
             print("Received punch from", sender)
+        # Discard too many punches
+        else:
+            pass
 
 
 if __name__ == "__main__":
