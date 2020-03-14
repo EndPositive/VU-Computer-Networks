@@ -2,40 +2,31 @@ import socket
 import time
 import threading
 
-def send(conn, data):
+
+def send(sock, data, conn):
     try:
-        print("OUT: ", data)
-        conn.sendall(data)
+        print("OUT: ", data, conn)
+        sock.sendto(data, conn)
         return True
     except socket.error as e:
         print(e)
         return False
 
 
-def receive(conn, size):
+def receive(sock, size):
     try:
-        data = conn.recv(size)
-        print("IN:   ", data)
+        data, conn = sock.recvfrom(size)
+        print("IN:   ", data, conn)
         if not data:
             return False
         else:
-            return data
+            return data, conn
     except socket.error as e:
         print(e)
         return False
 
 
-def punch(ip, port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    punchl = threading.Thread(target=punchlisten, args=(sock, ))
-    punchl.setDaemon(True)
-    punchl.start()
+def punch(sock, conn):
     while True:
-        sock.sendto(b"PUNCH", (ip, int(port)))
-        print(b"PUNCH", (ip, int(port)))
+        send(sock, b"PUNCH", conn)
         time.sleep(.5)
-
-
-def punchlisten(sock):
-    while True:
-        res = receive(sock, 4096)

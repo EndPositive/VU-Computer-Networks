@@ -5,11 +5,11 @@ from util import *
 
 class Client:
     def __init__(self):
-        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.conn = ('80.112.140.14', 65400)
 
     def start(self):
         # Connect to bootstrap
-        self.__socket.connect(('80.112.140.14', 65400))
         pullThread = threading.Thread(target=self.__pull)
         pullThread.setDaemon(True)
         pullThread.start()
@@ -48,7 +48,7 @@ class Client:
                 return
 
             by = packet.to_bytes()
-            send(self.__socket, by)
+            send(self.__socket, by, self.conn)
             time.sleep(0.2)
 
     def __pull(self):
