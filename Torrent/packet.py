@@ -6,13 +6,14 @@ class MalformedFrameError(Exception):
 
 class Packet:
     def __init__(self, data=None):
+        self.type = None
+        self.hash = b'\x00' * 16
+        self.seeders = []
+        self.err = None
+        self.piece_no = None
+        self.data = None
+
         if data is None:
-            self.type = None
-            self.hash = b'\x00' * 16
-            self.seeders = []
-            self.err = None
-            self.piece_no = None
-            self.data = None
             return
 
         if len(data) < 17:
@@ -26,8 +27,9 @@ class Packet:
         # parse request list of seeders
         if self.type == 3:
             self.seeders = []
-            while len(data) > index + 6:
-                self.seeders.append((data[index: index + 4], data[index + 5: index + 6]))
+            while len(data) >= index + 6:
+                self.seeders.append((data[index: index + 4], data[index + 4: index + 6]))
+                index += 6
         elif self.type == 5:
             self.err = int.from_bytes(data[index:], 'big')
         elif self.type == 6:
