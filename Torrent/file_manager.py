@@ -1,3 +1,6 @@
+from hashlib import md5
+
+
 class File:
     def __init__(self, path, piece_size=1000000):
         self.path = path
@@ -22,6 +25,21 @@ class File:
     def write_piece(self, piece_number, data):
         self.f.seek(piece_number * self.piece_size)
         return self.f.write(data)
+
+    def hash_file(self, max_read_size=1000000, function=md5):
+        h = function()
+        self.f.seek(0)
+        text = self.f.read(max_read_size)
+        while text:
+            h.update(text)
+            text = self.f.read(max_read_size)
+        return h.digest()
+
+    def hash_piece(self, piece_number, function=md5):
+        h = function()
+        self.f.seek(piece_number * self.piece_size)
+        h.update(self.f.read(self.piece_size))
+        return h.digest()
 
     def close(self):
         self.f.close()
