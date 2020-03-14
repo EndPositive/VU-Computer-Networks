@@ -32,6 +32,7 @@ def punch(ip, port):
     punchl.start()
     while True:
         sock.sendto(b"PUNCH", (ip, int(port)))
+        print(b"PUNCH", (ip, int(port)))
         time.sleep(.5)
 
 
