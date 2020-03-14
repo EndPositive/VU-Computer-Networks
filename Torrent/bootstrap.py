@@ -31,7 +31,7 @@ class Bootstrap:
                 self.pull_sign_out(packet, conn)
             # PING
             elif packet.type == 2:
-                pass
+                self.pull_sign_in(packet, conn)
             # LIST SEEDERS
             elif packet.type == 3:
                 self.pull_list(packet, conn)

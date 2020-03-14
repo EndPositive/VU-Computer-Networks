@@ -47,8 +47,34 @@ class Client:
             if not res:
                 print("Something bad happend: ", res)
                 return
-            p = Packet(res)
-            print(p.type)
+            packet = Packet(res)
+
+            if packet.type == 0:
+                pass
+            # SIGN OUT
+            elif packet.type == 1:
+                pass
+            # PING
+            elif packet.type == 2:
+                self.pull_ping()
+            # LIST SEEDERS
+            elif packet.type == 3:
+                self.pull_list(packet)
+            # CREATE HASH/TORRENT
+            elif packet.type == 4:
+                pass
+            # ERROR MESSAGE
+            elif packet.type == 5:
+                pass
+            # REQUEST FOR DOWNLOAD
+            elif packet.type == 6:
+                pass
+            # DOWNLOAD OF PIECE
+            elif packet.type == 7:
+                pass
+            else:
+                print("Unknown type", res)
+            print(packet.type)
 
     def push_sign_in(self, data):
         packet = Packet()
@@ -81,6 +107,14 @@ class Client:
         # packet.hash = " ".split(data)[1]
         packet.piece_no = " ".split(data)[2]
         send(self.__socket, packet.to_bytes(), self.conn)
+
+    def pull_ping(self):
+        packet = Packet()
+        packet.type = 2
+        send(self.__socket, packet.to_bytes(), self.conn)
+
+    def pull_list(self, packet):
+        print(packet.seeders)
 
 
 if __name__ == "__main__":
