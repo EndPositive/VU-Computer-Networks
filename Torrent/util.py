@@ -1,5 +1,6 @@
 import socket
 import time
+from hashlib import md5
 
 def send(sock, data, conn):
     try:
@@ -40,3 +41,9 @@ def addr_from_bytes(addr):
     new_ip = '.'.join([str(x) for x in list(ip)])
     new_port = int.from_bytes(port, 'big')
     return new_ip, new_port
+
+
+def hash_data(data, function=md5):
+    h = function()
+    h.update(data)
+    return h.digest()
