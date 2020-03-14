@@ -36,7 +36,7 @@ class Bootstrap:
                 self.pull_sign_out(packet, conn)
             # PING
             elif packet.type == 2:
-                self.pull_sign_in(packet, conn)
+                self.pull_sign_in(packet, conn, False)
             # LIST SEEDERS
             elif packet.type == 3:
                 self.pull_list(packet, conn)
@@ -62,8 +62,8 @@ class Bootstrap:
     def __ping(self):
         packet = Packet()
         packet.type = 2
-        connections = copy.deepcopy(self.connections)
         while True:
+            connections = copy.deepcopy(self.connections)
             for hash in connections:
                 self.connections[hash] = []
                 for conn in connections[hash]:
@@ -72,14 +72,15 @@ class Bootstrap:
             # about 60sec but it varies....
             time.sleep(15)
 
-    def pull_sign_in(self, packet, conn):
+    def pull_sign_in(self, packet, conn, needs_response=True):
         if packet.hash in self.connections:
             if conn not in self.connections[packet.hash]:
                 self.connections[packet.hash].append(conn)
             else:
                 self.pull_error(packet, conn, 2)
                 return
-            send(self.__socket, packet.to_bytes(), conn)
+            if needs_response:
+                send(self.__socket, packet.to_bytes(), conn)
         else:
             self.pull_error(packet, conn, 0)
 
