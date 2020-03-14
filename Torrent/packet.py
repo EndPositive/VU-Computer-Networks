@@ -54,7 +54,7 @@ class Packet:
                 if self.verbose:
                     print("Something with no data in download")
                 raise MalformedFrameError()
-        elif self.type == 8:
+        elif self.type == 8 or self.type == 9:
             if len(data) < index + 6:
                 if self.verbose:
                     print("No data in the punch packet")
@@ -76,7 +76,7 @@ class Packet:
         elif self.type == 7:
             data += self.piece_no.to_bytes(4, 'big')
             data += self.data
-        elif self.type == 8:
+        elif self.type == 8 or self.type == 9:
             data += addr_to_bytes(self.seeders[0])
 
         return data
