@@ -121,7 +121,7 @@ class Client:
         packet.seeders.append(to_be_punched)
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
-        punchThread = threading.Thread(target=self.__push, args=(packet, to_be_punched))
+        punchThread = threading.Thread(target=self.punch, args=(packet, to_be_punched))
         punchThread.setDaemon(True)
         punchThread.start()
 
@@ -138,7 +138,7 @@ class Client:
         if sender == self.conn_bootstrap:
             print("Received punch request")
             to_be_punched = packet.seeders[0]
-            punchThread = threading.Thread(target=self.__push, args=(packet, to_be_punched))
+            punchThread = threading.Thread(target=self.punch, args=(packet, to_be_punched))
             punchThread.setDaemon(True)
             punchThread.start()
             return
