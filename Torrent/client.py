@@ -112,7 +112,7 @@ class Client:
 
     def push_punch(self, data):
         data = data.split(" ")
-        to_be_punched = (data[0], int(data[2]))
+        to_be_punched = (data[1], int(data[2]))
 
         punch_packet = Packet()
         punch_packet.type = 8
