@@ -1,5 +1,6 @@
 import pickle
 from file_manager import File
+from hashlib import md5
 
 
 class Torrent:
@@ -18,8 +19,19 @@ class Torrent:
         else:
             self.pieces = _pieces
 
-    def add_piece(self, piece_number):
+    def allocate_space(self, byte_cnt):
+        self.file.allocate_space(byte_cnt)
+
+    def add_piece(self, piece_number, data=None):
         self.pieces.add(piece_number)
+        if data is not None:
+            self.file.write_piece(piece_number, data)
+
+    def get_piece(self, piece_number):
+        return self.file.read_piece(piece_number)
+
+    def hash_piece(self, piece_number, function=md5):
+        return self.file.hash_piece(piece_number, function)
 
 def save_torrents(torrent_list, file_name='config'):
     with open(file_name, 'wb') as f:
