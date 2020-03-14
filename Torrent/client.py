@@ -1,5 +1,3 @@
-import socket
-import time
 import threading
 from packet import *
 from util import *
@@ -43,9 +41,8 @@ class Client:
                 # packet.hash = " ".split(inp)[1]
                 packet.piece_no = " ".split(inp)[2]
             elif "punch" in inp:
-                packet.type = 6
-                by = packet.to_bytes()
-                self.__socket.connect((" ".split(inp)[1], int(" ".split(inp)[2])))
+                punch(" ".split(inp)[1], int(" ".split(inp)[2]))
+                continue
             else:
                 print("unknown command")
                 return
