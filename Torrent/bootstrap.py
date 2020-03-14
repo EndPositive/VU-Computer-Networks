@@ -66,7 +66,7 @@ class Bootstrap:
             for hash in connections:
                 self.connections[hash] = []
                 for conn in connections[hash]:
-                    send(self.__socket, packet, conn)
+                    send(self.__socket, packet.to_bytes(), conn)
             # Ping every 15 seconds. NAT's remove entries after
             # about 60sec but it varies....
             time.sleep(15)
