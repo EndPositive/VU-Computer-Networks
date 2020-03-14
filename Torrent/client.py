@@ -165,6 +165,10 @@ class Client:
             packet.type = 9
             send(self.__socket, packet.to_bytes(), conn)
             time.sleep(.5)
+        # Final punch
+        packet.type = 9
+        send(self.__socket, packet.to_bytes(), conn)
+        time.sleep(.5)
 
 
 if __name__ == "__main__":
