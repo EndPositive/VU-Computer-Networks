@@ -41,7 +41,7 @@ class Client:
                 # packet.hash = " ".split(inp)[1]
                 packet.piece_no = " ".split(inp)[2]
             elif "punch" in inp:
-                punch(" ".split(inp)[1], int(" ".split(inp)[2]))
+                punch(inp.split(" ")[1], int(inp.split(" ")[2]))
                 continue
             else:
                 print("unknown command")
