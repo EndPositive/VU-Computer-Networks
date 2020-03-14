@@ -1,5 +1,4 @@
 import socket
-import time
 from hashlib import md5
 
 def send(sock, data, conn):
