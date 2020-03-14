@@ -35,6 +35,9 @@ def addr_to_bytes(addr):
     ip = addr[0]
     port = addr[1]
 
+    if type(ip) == bytes or type(port) == bytes:
+        return ip, port
+
     new_ip = bytes([int(x) for x in ip.split('.')])
     new_port = port.to_bytes(2, 'big')
     return new_ip, new_port
@@ -43,6 +46,9 @@ def addr_to_bytes(addr):
 def addr_from_bytes(addr):
     ip = addr[0]
     port = addr[1]
+
+    if type(ip) != bytes or type(port) != bytes:
+        return ip, port
 
     new_ip = '.'.join([str(x) for x in list(ip)])
     new_port = int.from_bytes(port, 'big')
