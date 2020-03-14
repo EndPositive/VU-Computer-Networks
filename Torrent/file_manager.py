@@ -2,7 +2,7 @@ from hashlib import md5
 
 
 class File:
-    def __init__(self, path, piece_size=1000000):
+    def __init__(self, path, piece_size=1000):
         self.path = path
         self.piece_size = piece_size
 
