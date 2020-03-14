@@ -3,6 +3,7 @@ from packet import *
 from util import *
 import threading
 
+
 def error(conn, num):
     packet = Packet()
     packet.type = 5
@@ -15,14 +16,15 @@ def list_seeders(conn, connections):
     packet = Packet()
     packet.type = 3
     packet.seeders = connections
-    bytes = packet.to_bytes()
-    send(conn, bytes)
+    raw_bytes = packet.to_bytes()
+    send(conn, raw_bytes)
 
 
 class Bootstrap:
     def __init__(self):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+        # maps torrent hash to list of seeders
         self.connections = {}
 
     def start(self):
