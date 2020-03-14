@@ -7,8 +7,7 @@ def error(sock, num, conn):
     packet = Packet()
     packet.type = 5
     packet.err = num
-    bytes = packet.to_bytes()
-    send(sock, bytes, conn)
+    send(sock, packet.to_bytes(), conn)
 
 
 def list_seeders(sock, connections, conn):
