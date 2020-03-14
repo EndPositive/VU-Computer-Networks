@@ -74,7 +74,7 @@ class Client:
             # DOWNLOAD OF PIECE
             elif packet.type == 7:
                 pass
-            elif packet.type == 8:
+            elif packet.type == 8 or packet.type == 9:
                 self.pull_punch(packet, conn)
             else:
                 print("Unknown type", res)
