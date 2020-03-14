@@ -3,6 +3,7 @@ class MalformedFrameError(Exception):
         self.expression = expression
         self.message = message
 
+
 class Packet:
     def __init__(self, data=None):
         if data is None:
@@ -28,7 +29,6 @@ class Packet:
             while len(data) > index + 6:
                 self.seeders.append((data[index: index + 4], data[index + 5: index + 6]))
         elif self.type == 5:
-            # TODO: ERR CODES (MAYBE SKIP)
             self.err = int.from_bytes(data[index:], 'big')
         elif self.type == 6:
             if len(data) < index + 4:

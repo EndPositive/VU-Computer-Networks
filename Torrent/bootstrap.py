@@ -14,8 +14,7 @@ def list_seeders(sock, connections, conn):
     packet = Packet()
     packet.type = 3
     packet.seeders = connections
-    raw_bytes = packet.to_bytes()
-    send(sock, raw_bytes, conn)
+    send(sock, packet.to_bytes(), conn)
 
 
 class Bootstrap:
