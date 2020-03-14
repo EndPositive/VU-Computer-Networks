@@ -1,6 +1,5 @@
 import socket
 import time
-import threading
 
 
 def send(sock, data, conn):
