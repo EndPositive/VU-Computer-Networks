@@ -80,8 +80,11 @@ class DNSserver:
                     data += sockfd.recv(1024)
             query = DNSframe(data)
 
+            domain_name = b'.'.join(query.queries[0]['qname']).decode('utf8')
+            if 'local' in domain_name:
+                return
             if self.verbose:
-                print('[+]Received from', addr, flush=True)
+                print('[+]Received from', addr, domain_name, flush=True)
 
             # if it is not a standard query or it is truncated send format err and exit
             if query.qr != 0 or query.opcode != 0 or query.tc != 0:
@@ -107,10 +110,6 @@ class DNSserver:
             for i in range(len(query.queries) - 1, 0, -1):
                 del query.queries[i]
             query.qdcount = 1
-
-            a = b'.'.join(query.queries[0]['qname']).decode('utf8')
-            if 'vu' in a:
-                print(a)
 
             # make packet to send from the query
             forward_request = cp(query)
@@ -150,8 +149,7 @@ class DNSserver:
 
                 if self.verbose:
                     print('[+]Making recursive call', flush=True)
-                for server in ['8.8.8.8', '8.8.4.4']:
-                # for server in self.cache.get_best_servers(5):
+                for server in self.cache.get_best_servers(5):
                     try:
                         # open connection to the server and send the request
                         forward_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -217,7 +215,7 @@ class DNSserver:
 
                 # delete the responses that do not match the type and cache the good ones
                 for i in range(len(response.answers) - 1, -1, -1):
-                    answer = response.answers[i]
+                    answer = cp(response.answers[i])
                     if answer['type'] == query.queries[0]['qtype'] or answer['type'] == 5:
                         self.cache.add_record(answer)
 

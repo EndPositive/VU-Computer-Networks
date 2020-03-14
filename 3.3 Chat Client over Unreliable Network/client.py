@@ -322,7 +322,7 @@ class ChatClient:
 
 
 if __name__ == '__main__':
-    chatClient = ChatClient(False)
+    chatClient = ChatClient(True)
     chatClient.start()
     while True and not chatClient.Quit:
         pass

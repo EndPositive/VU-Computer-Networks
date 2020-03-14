@@ -112,7 +112,8 @@ class Cache:
                 continue
             # copy and set the new ttl
             curr_record = cp(record)
-            curr_record['ttl'] = ttl
+            # curr_record['ttl'] = ttl
+            curr_record['ttl'] = 0
             to_ret.append(curr_record)
 
         # delete expired records
