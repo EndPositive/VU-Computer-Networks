@@ -37,6 +37,7 @@ class Bootstrap:
             res, conn = receive(sock, 4096)
             if res:
                 packet = Packet(res)
+                p = Packet()
                 print(packet.type)
                 if packet.type == 0:
                     if packet.hash in self.connections:
@@ -45,7 +46,9 @@ class Bootstrap:
                         else:
                             error(sock, 2, conn)
                             continue
-                        by = packet.to_bytes()
+                        p.type = packet.type
+                        p.hash = packet.hash
+                        by = p.to_bytes()
                         send(sock, by, conn)
                     else:
                         error(sock, 0, conn)
@@ -53,7 +56,9 @@ class Bootstrap:
                 elif packet.type == 1:
                     if packet.hash in self.connections:
                         self.connections[packet.hash].remove(conn)
-                        by = packet.to_bytes()
+                        p.type = packet.type
+                        p.hash = packet.hash
+                        by = p.to_bytes()
                         send(sock, by, conn)
                     else:
                         error(sock, 0, conn)
@@ -65,7 +70,9 @@ class Bootstrap:
                 elif packet.type == 4:
                     if packet.hash not in self.connections:
                         self.connections[packet.hash] = []
-                        by = packet.to_bytes()
+                        p.type = packet.type
+                        p.hash = packet.hash
+                        by = p.to_bytes()
                         send(sock, by, conn)
                     else:
                         error(sock, 1, conn)
