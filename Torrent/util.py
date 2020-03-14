@@ -42,6 +42,7 @@ def addr_from_bytes(addr):
     new_port = int.from_bytes(port, 'big')
     return new_ip, new_port
 
+
 def hash_file(file_name, max_read_size=1000000, function=md5):
     h = function()
     with open(file_name, 'rb') as f:
