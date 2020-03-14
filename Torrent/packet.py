@@ -15,6 +15,7 @@ class Packet:
             return
 
         if len(data) < 17:
+            print("Incorrect length")
             raise MalformedFrameError()
 
         self.type = data[0]
@@ -31,13 +32,16 @@ class Packet:
             self.err = int.from_bytes(data[index:], 'big')
         elif self.type == 6:
             if len(data) < index + 4:
+                print("Something with req download")
                 raise MalformedFrameError()
             self.piece_no = int.from_bytes(data[index: index + 4], 'big')
         elif self.type == 7:
             if len(data) < index + 4:
+                print("Something with recv download")
                 raise MalformedFrameError()
             self.piece_no = int.from_bytes(data[index: index + 4], 'big')
             if len(self.data) == 0:
+                print("Something with no data in download")
                 raise MalformedFrameError()
             self.data = data[index + 4:]
 
