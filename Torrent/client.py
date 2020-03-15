@@ -78,7 +78,7 @@ class Client:
                 pass
             # REQUEST FOR DOWNLOAD
             elif packet.type == 6:
-                pass
+                self.send_download(packet)
             # DOWNLOAD OF PIECE
             elif packet.type == 7:
                 self.receive_download(packet)
@@ -205,10 +205,19 @@ class Client:
         except IndexError:
             print("Usage: download torrent_id\nGet list of seeders of a torrent.")
 
+    def send_download(self, packet):
+        try:
+            torrent = [t for t in self.torrents if t.hash == packet.hash][0]
+            packet.type = 7
+            packet.data = torrent.get_piece(packet.piece_no)
+            print("Sending a piece for torrent", torrent.id)
+        except IndexError:
+            print("Received a request for an unknown torrent", packet.hash, packet)
+
     def receive_download(self, packet):
         try:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
-            torrent.add_piece(packet.piece_no, packet.data)
+            piece = torrent.get_piece(packet.piece_no)
             print("Succesfully received a piece for torrent", torrent.id)
         except IndexError:
             print("Received a piece of an unknown torrent", packet.hash, packet)
