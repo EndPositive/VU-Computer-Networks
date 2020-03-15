@@ -7,12 +7,21 @@ class File:
         self.piece_size = piece_size
 
         # try to open the file and create it if it doesn't exist
+        self.f = None
         try:
-            self.f = open(self.path, 'r+b')
+            self.open()
         except FileNotFoundError:
             f = open(self.path, 'w')
             f.close()
-            self.f = open(self.path, 'r+b')
+            self.open()
+
+    def open(self):
+        self.f = open(self.path, 'r+b')
+
+    def close(self):
+        if self.f:
+            self.f.close()
+        self.f = None
 
     def allocate_space(self, byte_cnt):
         self.f.seek(byte_cnt - 1)
@@ -40,6 +49,3 @@ class File:
         self.f.seek(piece_number * self.piece_size)
         h.update(self.f.read(self.piece_size))
         return h.digest()
-
-    def close(self):
-        self.f.close()

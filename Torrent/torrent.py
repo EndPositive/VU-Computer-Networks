@@ -33,16 +33,29 @@ class Torrent:
     def hash_piece(self, piece_number, function=md5):
         return self.file.hash_piece(piece_number, function)
 
+    def close(self):
+        self.file.close()
+
+    def open(self):
+        self.file.open()
+
 
 def save_torrents(torrent_list, file_name='config'):
+    for t in torrent_list:
+        t.close()
     with open(file_name, 'wb') as f:
         pickle.dump(torrent_list, f)
+    for t in torrent_list:
+        t.open()
 
 
 def load_torrents(file_name='config'):
     try:
         with open(file_name, 'rb') as f:
             torrents = pickle.load(f)
+
+        for t in torrents:
+            t.open()
 
         return torrents
     except FileNotFoundError:
