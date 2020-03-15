@@ -65,7 +65,7 @@ class Client:
                 pass
             # PING
             elif packet.type == 2:
-                self.pull_ping()
+                self.pull_ping(packet)
             # LIST SEEDERS
             elif packet.type == 3:
                 self.pull_list(packet)
@@ -137,9 +137,7 @@ class Client:
         punchThread.setDaemon(True)
         punchThread.start()
 
-    def pull_ping(self):
-        packet = Packet()
-        packet.type = 2
+    def pull_ping(self, packet):
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def pull_list(self, packet):
