@@ -93,8 +93,11 @@ class Bootstrap:
             self.pull_error(packet, conn, 0)
 
     def pull_list(self, packet, conn):
-        packet.seeders = self.connections[packet.hash]
-        send(self.__socket, packet.to_bytes(), conn)
+        if packet.hash in self.connections:
+            packet.seeders = self.connections[packet.hash]
+            send(self.__socket, packet.to_bytes(), conn)
+        else:
+            self.pull_error(packet, conn, 0)
 
     def pull_create(self, packet, conn):
         if packet.hash not in self.connections:
