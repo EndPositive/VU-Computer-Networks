@@ -39,6 +39,8 @@ class Client:
                     print(torrent.id, torrent.file.path, torrent.hash)
             elif "create" in inp:
                 self.push_create(inp)
+            elif "remove" in inp:
+                self.remove_torrent(inp)
             elif "download" in inp:
                 self.push_download(inp)
             elif "punch" in inp:
@@ -179,6 +181,9 @@ class Client:
         send(self.__socket, packet.to_bytes(), conn)
         time.sleep(.5)
         print("> ")
+
+    def remove_torrent(self, data):
+        self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
 
 
 if __name__ == "__main__":
