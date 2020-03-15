@@ -30,13 +30,13 @@ class Client:
             inp = input("> ")
             if "!seed" in inp:
                 self.push_sign_out(inp)
-            elif "seed" in inp:
-                self.push_sign_in(inp)
             elif "seeders" in inp:
                 self.push_list(inp)
+            elif "seed" in inp:
+                self.push_sign_in(inp)
             elif "list" in inp:
                 for torrent in self.torrents:
-                    print(torrent.id, torrent.hash)
+                    print(torrent.id, torrent.file.path, torrent.hash)
             elif "create" in inp:
                 self.push_create(inp)
             elif "download" in inp:
@@ -88,21 +88,21 @@ class Client:
             save_torrents(self.torrents)
 
     def push_sign_in(self, data):
-        torrent = self.torrents[data.split(" ")[1]]
+        torrent = self.torrents[int(data.split(" ")[1])]
         packet = Packet()
         packet.type = 0
         packet.hash = torrent.hash
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_sign_out(self, data):
-        torrent = self.torrents[data.split(" ")[1]]
+        torrent = self.torrents[int(data.split(" ")[1])]
         packet = Packet()
         packet.type = 1
         packet.hash = torrent.hash
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_list(self, data):
-        torrent = self.torrents[data.split(" ")[1]]
+        torrent = self.torrents[int(data.split(" ")[1])]
         packet = Packet()
         packet.type = 3
         packet.hash = torrent.hash
