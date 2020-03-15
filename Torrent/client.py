@@ -89,33 +89,45 @@ class Client:
             save_torrents(self.torrents)
 
     def push_sign_in(self, data):
-        torrent = self.torrents[int(data.split(" ")[1])]
-        packet = Packet()
-        packet.type = 0
-        packet.hash = torrent.hash
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        try:
+            torrent = self.torrents[int(data.split(" ")[1])]
+            packet = Packet()
+            packet.type = 0
+            packet.hash = torrent.hash
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        except IndexError:
+            print("Usage: seed torrent_id\nStart seeding a torrent.")
 
     def push_sign_out(self, data):
-        torrent = self.torrents[int(data.split(" ")[1])]
-        packet = Packet()
-        packet.type = 1
-        packet.hash = torrent.hash
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        try:
+            torrent = self.torrents[int(data.split(" ")[1])]
+            packet = Packet()
+            packet.type = 1
+            packet.hash = torrent.hash
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        except IndexError:
+            print("Usage: !seed torrent_id\nStop seeding a torrent.")
 
     def push_list(self, data):
-        torrent = self.torrents[int(data.split(" ")[1])]
-        packet = Packet()
-        packet.type = 3
-        packet.hash = torrent.hash
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        try:
+            torrent = self.torrents[int(data.split(" ")[1])]
+            packet = Packet()
+            packet.type = 3
+            packet.hash = torrent.hash
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        except IndexError:
+            print("Usage: seeders torrent_id\nGet list of seeders of a torrent.")
 
     def push_create(self, data):
-        torrent = Torrent(data.split(" ")[1], 10, len(self.torrents))
-        self.torrents.append(torrent)
-        packet = Packet()
-        packet.type = 4
-        packet.hash = torrent.hash
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        try:
+            torrent = Torrent(data.split(" ")[1], 10, len(self.torrents))
+            self.torrents.append(torrent)
+            packet = Packet()
+            packet.type = 4
+            packet.hash = torrent.hash
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        except IndexError:
+            print("Usage: create /path/to/file\nAnnounce a torrent at the bootstrap.")
 
     def push_download(self, data):
         torrent = Torrent(data.split(" ")[1], 10, len(self.torrents))
@@ -126,17 +138,20 @@ class Client:
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_punch(self, data):
-        data = data.split(" ")
-        to_be_punched = (data[1], int(data[2]))
+        try:
+            data = data.split(" ")
+            to_be_punched = (data[1], int(data[2]))
 
-        packet = Packet()
-        packet.type = 8
-        packet.seeders.append(to_be_punched)
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+            packet = Packet()
+            packet.type = 8
+            packet.seeders.append(to_be_punched)
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
-        punchThread = threading.Thread(target=self.punch, args=(packet, to_be_punched))
-        punchThread.setDaemon(True)
-        punchThread.start()
+            punchThread = threading.Thread(target=self.punch, args=(packet, to_be_punched))
+            punchThread.setDaemon(True)
+            punchThread.start()
+        except IndexError:
+            print("Usage: punch ip port\nPunch a connection to another client.")
 
     def pull_ping(self, packet):
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
@@ -183,7 +198,10 @@ class Client:
         print("> ")
 
     def remove_torrent(self, data):
-        self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
+        try:
+            self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
+        except IndexError:
+            print("Usage: remove torrent_id\nRemove a torrent from local cache (does not delete downloaded file).")
 
 
 if __name__ == "__main__":
