@@ -6,7 +6,7 @@ class File:
         self.path = path
         self.piece_size = piece_size
 
-        # try to open the file and create it if it doesn't exist
+        # try to open the file
         self.f = None
         self.open()
 
