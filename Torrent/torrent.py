@@ -1,7 +1,9 @@
 import pickle
 from file_manager import File
 from hashlib import md5
+from threading import Lock
 
+mutex = Lock()
 
 class Torrent:
     def __init__(self, _path, piece_size=1000, _id=0, _hash=None, _pieces=None):
@@ -41,15 +43,18 @@ class Torrent:
 
 
 def save_torrents(torrent_list, file_name='config'):
+    mutex.acquire()
     for t in torrent_list:
         t.close()
     with open(file_name, 'wb') as f:
         pickle.dump(torrent_list, f)
     for t in torrent_list:
         t.open()
+    mutex.release()
 
 
 def load_torrents(file_name='config'):
+    mutex.acquire()
     try:
         with open(file_name, 'rb') as f:
             torrents = pickle.load(f)
@@ -57,6 +62,8 @@ def load_torrents(file_name='config'):
         for t in torrents:
             t.open()
 
+        mutex.release()
         return torrents
     except FileNotFoundError:
+        mutex.release()
         return []
