@@ -201,7 +201,7 @@ class Client:
             packet.type = 6
             packet.hash = torrent.hash
             packet.piece_no = 1
-            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+            send(self.__socket, packet.to_bytes(), to_be_punched)
         except IndexError:
             print("Usage: download torrent_id\nGet list of seeders of a torrent.")
 
