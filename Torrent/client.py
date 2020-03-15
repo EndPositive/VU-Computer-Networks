@@ -12,16 +12,17 @@ class Client:
         self.punched = False
         self.punched_other = False
         self.torrents = []
+        self.connections = {}
 
     def start(self):
         self.torrents = load_torrents()
         # Connect to bootstrap
-        pullThread = threading.Thread(target=self.__pull)
-        pullThread.setDaemon(True)
-        pullThread.start()
-        pushThread = threading.Thread(target=self.__push)
-        pushThread.setDaemon(True)
-        pushThread.start()
+        pull_thread = threading.Thread(target=self.__pull)
+        pull_thread.setDaemon(True)
+        pull_thread.start()
+        push_thread = threading.Thread(target=self.__push)
+        push_thread.setDaemon(True)
+        push_thread.start()
         while True:
             pass
 
@@ -42,12 +43,9 @@ class Client:
             elif "create" in inp:
                 self.push_create(inp)
             elif "remove" in inp:
-                self.remove_torrent(inp)
+                self.pull_remove_torrent(inp)
             elif "download" in inp:
-                self.push_download(inp)
-            elif "punch" in inp:
-                self.push_punch(inp)
-                continue
+                self.request_download(inp)
             else:
                 print("Unknown command")
             save_torrents(self.torrents)
@@ -83,7 +81,7 @@ class Client:
                 pass
             # DOWNLOAD OF PIECE
             elif packet.type == 7:
-                pass
+                self.receive_download(packet)
             elif packet.type == 8 or packet.type == 9:
                 self.pull_punch(packet, conn)
             else:
@@ -133,34 +131,11 @@ class Client:
         except FileNotFoundError:
             print("File not found, try again.")
 
-    def push_download(self, data):
-        torrent = Torrent(data.split(" ")[1], 10, len(self.torrents))
-        packet = Packet()
-        packet.type = 6
-        packet.hash = torrent.hash
-        packet.piece_no = " ".split(data)[2]
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
-
-    def push_punch(self, data):
-        try:
-            data = data.split(" ")
-            to_be_punched = (data[1], int(data[2]))
-
-            packet = Packet()
-            packet.type = 8
-            packet.seeders.append(to_be_punched)
-            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
-
-            punchThread = threading.Thread(target=self.punch, args=(packet, to_be_punched))
-            punchThread.setDaemon(True)
-            punchThread.start()
-        except IndexError:
-            print("Usage: punch ip port\nPunch a connection to another client.")
-
     def pull_ping(self, packet):
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def pull_list(self, packet):
+        self.connections[packet.hash] = packet.seeders
         print(packet.seeders)
 
     def pull_punch(self, packet, sender):
@@ -168,9 +143,9 @@ class Client:
         if sender == self.conn_bootstrap:
             print("Received punch request")
             to_be_punched = packet.seeders[0]
-            punchThread = threading.Thread(target=self.punch, args=(packet, to_be_punched))
-            punchThread.setDaemon(True)
-            punchThread.start()
+            punch_thread = threading.Thread(target=self.punch, args=(packet, to_be_punched))
+            punch_thread.setDaemon(True)
+            punch_thread.start()
             return
 
         # Its am actual punch and we have not been punched yet
@@ -198,10 +173,47 @@ class Client:
         # Final punch
         packet.type = 9
         send(self.__socket, packet.to_bytes(), conn)
-        time.sleep(.5)
-        print("> ")
 
-    def remove_torrent(self, data):
+    def request_download(self, data):
+        try:
+            torrent = self.torrents[int(data.split(" ")[1])]
+
+            # Get seeders list
+            self.push_list(data)
+            time.sleep(1)
+
+            # # Start punching everyone in that list
+            # for to_be_punched in self.connections[torrent.hash]:
+
+            to_be_punched = self.connections[torrent.hash][0]
+
+            # Tell the bootstrap you want to start punching someone
+            packet = Packet()
+            packet.type = 8
+            packet.seeders.append(to_be_punched)
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+
+            # Start punching that someone
+            self.punch(packet, to_be_punched)
+
+            # Request a download
+            packet = Packet()
+            packet.type = 6
+            packet.hash = torrent.hash
+            packet.piece_no = 1
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        except IndexError:
+            print("Usage: download torrent_id\nGet list of seeders of a torrent.")
+
+    def receive_download(self, packet):
+        try:
+            torrent = [t for t in self.torrents if t.hash == packet.hash][0]
+            torrent.add_piece(packet.piece_no, packet.data)
+            print("Succesfully received a piece for torrent", torrent.id)
+        except IndexError:
+            print("Received a piece of an unknown torrent", packet.hash, packet)
+
+    def pull_remove_torrent(self, data):
         try:
             self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
         except IndexError:
