@@ -4,7 +4,7 @@ from hashlib import md5
 
 
 class Torrent:
-    def __init__(self, _path, piece_size=1000, _hash=None, _id=0, _pieces=None):
+    def __init__(self, _path, piece_size=1000, _id=0, _hash=None, _pieces=None):
         self.file = File(_path, piece_size)
 
         if _hash is None:
