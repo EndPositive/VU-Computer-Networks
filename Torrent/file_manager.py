@@ -8,12 +8,7 @@ class File:
 
         # try to open the file and create it if it doesn't exist
         self.f = None
-        try:
-            self.open()
-        except FileNotFoundError:
-            f = open(self.path, 'w')
-            f.close()
-            self.open()
+        self.open()
 
     def open(self):
         self.f = open(self.path, 'r+b')
