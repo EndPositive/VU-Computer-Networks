@@ -33,9 +33,11 @@ class Torrent:
     def hash_piece(self, piece_number, function=md5):
         return self.file.hash_piece(piece_number, function)
 
+
 def save_torrents(torrent_list, file_name='config'):
     with open(file_name, 'wb') as f:
         pickle.dump(torrent_list, f)
+
 
 def load_torrents(file_name='config'):
     with open(file_name, 'rb') as f:

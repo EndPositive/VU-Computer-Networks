@@ -1,4 +1,3 @@
-import socket
 import copy
 import threading
 from packet import *

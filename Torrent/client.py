@@ -1,7 +1,8 @@
 import threading
+import time
 from packet import *
 from util import *
-from file_manager import *
+from torrent import *
 
 
 class Client:
@@ -10,8 +11,10 @@ class Client:
         self.conn_bootstrap = ('80.112.140.14', 65400)
         self.punched = False
         self.punched_other = False
+        self.torrents = []
 
     def start(self):
+        self.torrents = load_torrents()
         # Connect to bootstrap
         pullThread = threading.Thread(target=self.__pull)
         pullThread.setDaemon(True)
@@ -29,8 +32,11 @@ class Client:
                 self.push_sign_out(inp)
             elif "seed" in inp:
                 self.push_sign_in(inp)
-            elif "list" in inp:
+            elif "seeders" in inp:
                 self.push_list(inp)
+            elif "list" in inp:
+                for torrent in self.torrents:
+                    print(torrent.id, torrent.hash)
             elif "create" in inp:
                 self.push_create(inp)
             elif "download" in inp:
@@ -41,7 +47,7 @@ class Client:
             else:
                 print("unknown command")
                 return
-
+            save_torrents(self.torrents)
             time.sleep(0.2)
 
     def __pull(self):
@@ -79,35 +85,42 @@ class Client:
                 self.pull_punch(packet, conn)
             else:
                 print("Unknown type", res)
-            print(packet.type)
+            save_torrents(self.torrents)
 
     def push_sign_in(self, data):
+        torrent = self.torrents[data.split(" ")[1]]
         packet = Packet()
         packet.type = 0
+        packet.hash = torrent.hash
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_sign_out(self, data):
+        torrent = self.torrents[data.split(" ")[1]]
         packet = Packet()
         packet.type = 1
+        packet.hash = torrent.hash
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_list(self, data):
+        torrent = self.torrents[data.split(" ")[1]]
         packet = Packet()
         packet.type = 3
-        # packet.hash = b"0x00" * 16
+        packet.hash = torrent.hash
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_create(self, data):
+        torrent = Torrent(data.split(" ")[1], 10, len(self.torrents))
+        self.torrents.append(torrent)
         packet = Packet()
         packet.type = 4
-        f = File(data.split(" ")[1], 10)
-        packet.hash = f.hash_file()
+        packet.hash = torrent.hash
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def push_download(self, data):
+        torrent = Torrent(data.split(" ")[1], 10, len(self.torrents))
         packet = Packet()
         packet.type = 6
-        # packet.hash = " ".split(data)[1]
+        packet.hash = torrent.hash
         packet.piece_no = " ".split(data)[2]
         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
