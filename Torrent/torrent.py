@@ -40,7 +40,10 @@ def save_torrents(torrent_list, file_name='config'):
 
 
 def load_torrents(file_name='config'):
-    with open(file_name, 'rb') as f:
-        torrents = pickle.load(f)
+    try:
+        with open(file_name, 'rb') as f:
+            torrents = pickle.load(f)
 
-    return torrents
+        return torrents
+    except FileNotFoundError:
+        return []
