@@ -35,6 +35,8 @@ class Client:
             elif "seed" in inp:
                 self.push_sign_in(inp)
             elif "list" in inp:
+                if not len(self.torrents):
+                    print("No torrents available.\nUse create to add new torrents.")
                 for torrent in self.torrents:
                     print(torrent.id, torrent.file.path, torrent.hash)
             elif "create" in inp:
@@ -128,6 +130,8 @@ class Client:
             send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
         except IndexError:
             print("Usage: create /path/to/file\nAnnounce a torrent at the bootstrap.")
+        except FileNotFoundError:
+            print("File not found, try again.")
 
     def push_download(self, data):
         torrent = Torrent(data.split(" ")[1], 10, len(self.torrents))
