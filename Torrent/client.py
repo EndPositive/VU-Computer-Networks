@@ -45,8 +45,7 @@ class Client:
                 self.push_punch(inp)
                 continue
             else:
-                print("unknown command")
-                return
+                print("Unknown command")
             save_torrents(self.torrents)
             time.sleep(0.2)
 
