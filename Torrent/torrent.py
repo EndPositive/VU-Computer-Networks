@@ -25,9 +25,10 @@ class Torrent:
         self.file.allocate_space(byte_cnt)
 
     def add_piece(self, piece_number, data=None):
-        self.pieces.add(piece_number)
-        if data is not None:
-            self.file.write_piece(piece_number, data)
+        if piece_number not in self.pieces:
+            self.pieces.add(piece_number)
+            if data is not None:
+                self.file.write_piece(piece_number, data)
 
     def get_piece(self, piece_number):
         return self.file.read_piece(piece_number)

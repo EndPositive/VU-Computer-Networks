@@ -218,7 +218,7 @@ class Client:
     def receive_download(self, packet):
         try:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
-            piece = torrent.get_piece(packet.piece_no)
+            torrent.add_piece(packet.piece_no, data=packet.data)
             print("Succesfully received a piece for torrent", torrent.id)
         except IndexError:
             print("Received a piece of an unknown torrent", packet.hash, packet)
