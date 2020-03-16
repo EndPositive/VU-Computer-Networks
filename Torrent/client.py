@@ -206,9 +206,9 @@ class Client:
         while True:
             connections = copy.deepcopy(self.active_seeders)
             for hash in connections:
-                self.connections[hash] = []
                 for conn in connections[hash]:
                     packet.hash = hash
+                    self.active_seeders[hash].remove(conn)
                     send(self.__socket, packet.to_bytes(), conn)
             # Ping every 15 seconds. NAT's remove entries after
             # about 60sec but it varies....
