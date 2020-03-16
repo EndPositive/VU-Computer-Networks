@@ -1,5 +1,6 @@
 import threading
 import time
+import copy
 from packet import *
 from util import *
 from torrent import *
@@ -8,11 +9,22 @@ from torrent import *
 class Client:
     def __init__(self):
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        # Ip and port of the bootstrap server
         self.conn_bootstrap = ('80.112.140.14', 65400)
+
+        # Variable to know between threads whether we are punched
         self.punched = False
+        # Variable to know between threads whether the other is punched
         self.punched_other = False
+
+        # List of torrents
         self.torrents = []
-        self.connections = {}
+
+        # Dict of seeders, punched seeders and active seeders by torrent hash
+        self.seeders = {}
+        self.active_seeders = {}
+        self.max_active_seeders = 3
 
     def start(self):
         self.torrents = load_torrents()
@@ -23,6 +35,9 @@ class Client:
         push_thread = threading.Thread(target=self.__push)
         push_thread.setDaemon(True)
         push_thread.start()
+        ping_thread = threading.Thread(target=self.__ping)
+        ping_thread.setDaemon(True)
+        ping_thread.start()
         while True:
             pass
 
@@ -66,7 +81,7 @@ class Client:
                 pass
             # PING
             elif packet.type == 2:
-                self.pull_ping(packet)
+                self.pull_ping(packet, conn)
             # LIST SEEDERS
             elif packet.type == 3:
                 self.pull_list(packet)
@@ -81,7 +96,7 @@ class Client:
                 self.send_download(packet, conn)
             # DOWNLOAD OF PIECE
             elif packet.type == 7:
-                self.receive_download(packet)
+                self.receive_download(packet, conn)
             elif packet.type == 8 or packet.type == 9:
                 self.pull_punch(packet, conn)
             else:
@@ -131,11 +146,15 @@ class Client:
         except FileNotFoundError:
             print("File not found, try again.")
 
-    def pull_ping(self, packet):
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+    def pull_ping(self, packet, conn):
+        if conn == self.conn_bootstrap:
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        else:
+            torrent = [t for t in self.torrents if t.hash == packet.hash][0]
+            self.push_sign_in("seed " + str(torrent.id))
 
     def pull_list(self, packet):
-        self.connections[packet.hash] = packet.seeders
+        self.seeders[packet.hash] = packet.seeders
         print(packet.seeders)
 
     def pull_punch(self, packet, sender):
@@ -158,7 +177,14 @@ class Client:
             self.punched_other = True
             print("Punched", sender)
 
-    def punch(self, packet, conn):
+    def punch(self, conn):
+        packet = Packet()
+
+        # Tell the bootstrap you want to start punching someone
+        packet.type = 8
+        packet.seeders.append(conn)
+        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+
         self.punched = False
         self.punched_other = False
         # We have not been punched yet
@@ -174,34 +200,55 @@ class Client:
         packet.type = 9
         send(self.__socket, packet.to_bytes(), conn)
 
+    def __ping(self):
+        packet = Packet()
+        packet.type = 2
+        while True:
+            connections = copy.deepcopy(self.active_seeders)
+            for hash in connections:
+                self.connections[hash] = []
+                for conn in connections[hash]:
+                    packet.hash = hash
+                    send(self.__socket, packet.to_bytes(), conn)
+            # Ping every 15 seconds. NAT's remove entries after
+            # about 60sec but it varies....
+            time.sleep(15)
+
+
     def request_download(self, data):
         try:
+            packet = Packet()
             torrent = self.torrents[int(data.split(" ")[1])]
-
-            # Get seeders list
-            self.push_list(data)
-            time.sleep(1)
-
-            # # Start punching everyone in that list
-            # for to_be_punched in self.connections[torrent.hash]:
-
-            to_be_punched = self.connections[torrent.hash][0]
-
-            # Tell the bootstrap you want to start punching someone
-            packet = Packet()
-            packet.type = 8
-            packet.seeders.append(to_be_punched)
-            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
-
-            # Start punching that someone
-            self.punch(packet, to_be_punched)
-
-            # Request a download
-            packet = Packet()
-            packet.type = 6
             packet.hash = torrent.hash
-            packet.piece_no = 1
-            send(self.__socket, packet.to_bytes(), to_be_punched)
+
+            # Main download loop
+            while True:
+                # Try to download from more seeders if limit isn't reached
+                if len(self.active_seeders[torrent.hash]) < self.max_active_seeders:
+                    # Get seeders list
+                    self.push_list(data)
+                    time.sleep(1)
+
+                    # Find punched seeders who are not seeding yet
+                    idle_seeders = [s for s in self.seeders[torrent.hash] if s not in self.active_seeders]
+
+                    if len(idle_seeders) == 0:
+                        # Wait a bit before trying again
+                        time.sleep(1)
+
+                    # Punch an idle seeder
+                    self.punch(idle_seeders[0])
+
+                    # Request a download
+                    packet.type = 6
+                    packet.piece_no = torrent.get_piece_no()
+                    send(self.__socket, packet.to_bytes(), idle_seeders[0])
+
+                    # Mark the seeders as active
+                    self.active_seeders[torrent.hash].append(idle_seeders[0])
+                else:
+                    # Wait a bit before trying again
+                    time.sleep(1)
         except IndexError:
             print("Usage: download torrent_id\nGet list of seeders of a torrent.")
 
@@ -215,10 +262,11 @@ class Client:
         except IndexError:
             print("Received a request for an unknown torrent", packet.hash, packet)
 
-    def receive_download(self, packet):
+    def receive_download(self, packet, conn):
         try:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             torrent.add_piece(packet.piece_no, data=packet.data)
+            self.active_seeders[torrent.hash].remove(conn)
             print("Succesfully received a piece for torrent", torrent.id)
         except IndexError:
             print("Received a piece of an unknown torrent", packet.hash, packet)
