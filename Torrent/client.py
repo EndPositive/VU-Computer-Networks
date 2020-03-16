@@ -26,6 +26,11 @@ class Client:
         self.active_seeders = {}
         self.max_active_seeders = 3
 
+        # Counter for how many pieces we are receiving
+        self.counter = {}
+        self.speed = {}
+        self.total_speed = 0;
+
     def start(self):
         self.torrents = load_torrents()
         # Connect to bootstrap
@@ -38,6 +43,9 @@ class Client:
         ping_thread = threading.Thread(target=self.__ping)
         ping_thread.setDaemon(True)
         ping_thread.start()
+        speed_thread = threading.Thread(target=self.__ping)
+        speed_thread.setDaemon(True)
+        speed_thread.start()
         while True:
             pass
 
@@ -214,6 +222,14 @@ class Client:
             # about 60sec but it varies....
             time.sleep(15)
 
+    def __download_speed(self):
+        time.sleep(1)
+        total_speed = 0
+        for hash in self.counter:
+            self.speed[hash] = self.counter[hash]
+            self.counter[hash] = 0
+            total_speed += self.speed[hash]
+        self.total_speed = total_speed
 
     def request_download(self, data):
         try:
@@ -267,6 +283,7 @@ class Client:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             torrent.add_piece(packet.piece_no, data=packet.data)
             self.active_seeders[torrent.hash].remove(conn)
+            self.counter[torrent.hash] += 1
             print("Succesfully received a piece for torrent", torrent.id)
         except IndexError:
             print("Received a piece of an unknown torrent", packet.hash, packet)
