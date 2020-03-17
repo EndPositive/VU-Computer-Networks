@@ -201,6 +201,11 @@ class Client:
                         # Wait a bit before trying again
                         time.sleep(1)
 
+                    # Tell the bootstrap you want to start punching someone
+                    packet.type = 8
+                    packet.seeders.append(idle_seeders[0])
+                    send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+
                     # Punch an idle seeder
                     self.send_punch(idle_seeders[0])
 
@@ -278,11 +283,6 @@ class Client:
 
     def send_punch(self, conn):
         packet = Packet()
-
-        # Tell the bootstrap you want to start punching someone
-        packet.type = 8
-        packet.seeders.append(conn)
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
         self.punched = False
         self.punched_other = False
