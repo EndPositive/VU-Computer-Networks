@@ -40,9 +40,6 @@ class Bootstrap:
             # LIST SEEDERS
             elif packet.type == 3:
                 self.h_request_seeders(packet, conn)
-            # CREATE HASH/TORRENT
-            elif packet.type == 4:
-                self.h_create(packet, conn)
             # REQUEST HOLE PUNCH
             elif packet.type == 8:
                 self.h_punch(packet, conn)
@@ -63,37 +60,29 @@ class Bootstrap:
             time.sleep(15)
 
     def h_start_seeding(self, packet, conn, needs_response=True):
-        if packet.hash in self.connections:
-            if conn not in self.connections[packet.hash]:
-                self.connections[packet.hash].append(conn)
-            else:
-                self.h_error(packet, conn, 2)
-                return
-            if needs_response:
-                send(self.__socket, packet.to_bytes(), conn)
+        if packet.hash not in self.connections:
+            self.connections[packet.hash] = []
+
+        if conn not in self.connections[packet.hash]:
+            self.connections[packet.hash].append(conn)
         else:
-            self.h_error(packet, conn, 0)
+            self.h_error(packet, conn, 2)
+            return
+        if needs_response:
+            send(self.__socket, packet.to_bytes(), conn)
 
     def h_stop_seeding(self, packet, conn):
         if packet.hash in self.connections:
             self.connections[packet.hash].remove(conn)
             send(self.__socket, packet.to_bytes(), conn)
-        else:
-            self.h_error(packet, conn, 0)
 
     def h_request_seeders(self, packet, conn):
         if packet.hash in self.connections:
             packet.seeders = self.connections[packet.hash]
             send(self.__socket, packet.to_bytes(), conn)
         else:
+            packet.seeders = []
             self.h_error(packet, conn, 0)
-
-    def h_create(self, packet, conn):
-        if packet.hash not in self.connections:
-            self.connections[packet.hash] = []
-            send(self.__socket, packet.to_bytes(), conn)
-        else:
-            self.h_error(packet, conn, 1)
 
     def h_punch(self, packet, to_be_punched):
         to_punch = packet.seeders[0]

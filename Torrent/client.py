@@ -127,8 +127,6 @@ class Client:
                 self.torrents.append(torrent)
             else:
                 print("Torrent is already added")
-
-            self.enable_torrent(torrent)
         except IndexError:
             print("Usage: load /path/to/file\nLoad a torrent from a torrent file")
         except FileNotFoundError:
@@ -140,7 +138,7 @@ class Client:
             torrent = Torrent(path, 1000, len(self.torrents))
             path = TorrentFile.dump(torrent, path)
             print("Saved torrent file:", path)
-            self.enable_torrent(torrent)
+            self.torrents.append(torrent)
         except (IndexError, TypeError, ValueError) as e:
             print("Usage: generate id /path/to/file\nGenerate a torrent file for a given torrent")
 
@@ -149,14 +147,6 @@ class Client:
             self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
         except IndexError:
             print("Usage: remove torrent_id\nRemove a torrent from local cache (does not delete downloaded file).")
-
-    def enable_torrent(self, torrent):
-        self.torrents.append(torrent)
-        print("Asking bootstrap to list this torrent")
-        packet = Packet()
-        packet.type = 4
-        packet.hash = torrent.hash
-        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def start_seeding(self, data):
         try:
