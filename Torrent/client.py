@@ -328,8 +328,7 @@ class Client:
         if conn == self.conn_bootstrap:
             send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
         else:
-            torrent = [t for t in self.torrents if t.hash == packet.hash][0]
-            self.start_seeding("seed " + str(torrent.id))
+            self.active_seeders[packet.hash].append(conn)
 
 
 if __name__ == "__main__":
