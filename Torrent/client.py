@@ -5,7 +5,7 @@ from packet import *
 from util import *
 from torrent import *
 from random import randint
-
+from platform import system
 
 class Client:
     def __init__(self):
@@ -33,14 +33,15 @@ class Client:
         self.total_speed = 0
 
     def start(self):
-        host_name = socket.gethostname()
-        host_ip = socket.gethostbyname(host_name)
-        while True:
-            try:
-                self.__socket.bind((host_ip, randint(49152, 65535)))
-                break
-            except:
-                pass
+        if system() == "Windows":
+            host_name = socket.gethostname()
+            host_ip = socket.gethostbyname(host_name)
+            while True:
+                try:
+                    self.__socket.bind((host_ip, randint(49152, 65535)))
+                    break
+                except:
+                    pass
         self.torrents = load_torrents()
         # Connect to bootstrap
         pull_thread = threading.Thread(target=self.__pull)
