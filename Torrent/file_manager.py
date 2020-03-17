@@ -1,4 +1,5 @@
 from hashlib import md5
+from os.path import exists
 
 
 class File:
@@ -11,6 +12,9 @@ class File:
         self.open()
 
     def open(self):
+        if not exists(self.path):
+            with open(self.path, 'w') as f:
+                pass
         self.f = open(self.path, 'r+b')
 
     def close(self):
