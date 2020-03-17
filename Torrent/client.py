@@ -207,7 +207,7 @@ class Client:
                     send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
                     # Punch an idle seeder
-                    self.send_punch(idle_seeders[0])
+                    self.send_punch(idle_seeders[0], idle_seeders[0])
 
                     # Mark the seeders as active
                     self.active_seeders[torrent.hash].append(idle_seeders[0])
