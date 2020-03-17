@@ -283,6 +283,7 @@ class Client:
 
     def send_punch(self, conn):
         packet = Packet()
+        packet.type = 8
 
         self.punched = False
         self.punched_other = False
