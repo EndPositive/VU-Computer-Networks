@@ -42,6 +42,8 @@ class Torrent:
         return self.file.read_piece(piece_number)
 
     def get_piece_no(self):
+        if len(self.pieces) >= self.get_n_pieces():
+            return -1
         n_pieces = self.get_n_pieces()
         if n_pieces is not None:
             while self.__curr_piece in self.pieces:
