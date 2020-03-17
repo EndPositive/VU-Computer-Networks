@@ -198,6 +198,8 @@ class Client:
                     # Request a download
                     packet.type = 6
                     packet.piece_no = torrent.get_piece_no()
+                    if packet.piece_no == -1:
+                        break
                     send(self.__socket, packet.to_bytes(), idle_seeders[0])
 
                     # Mark the seeders as active
