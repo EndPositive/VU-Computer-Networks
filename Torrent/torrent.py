@@ -61,7 +61,10 @@ class Torrent:
         return i
 
     def get_n_pieces(self):
-        pass
+        if self.file_size % self.piece_size == 0:
+            return self.file_size // self.piece_size
+        else:
+            return self.file_size // self.piece_size + 1
 
     def hash_piece(self, piece_number, function=md5):
         return self.file.hash_piece(piece_number, function)
@@ -82,12 +85,12 @@ class TorrentFile:
             server = obj['server']
             piece_size = obj['piece_size']
             file_size = obj['file_size']
-            hash = obj['hash']
+            hash_val = obj['hash']
 
         return Torrent(
             _path=file_name,
             _piece_size=piece_size,
-            _hash=hash,
+            _hash=hash_val,
             _server=server,
             _file_size=file_size
         )
