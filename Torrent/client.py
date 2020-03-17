@@ -122,9 +122,6 @@ class Client:
     def load_torrent(self, data):
         try:
             path = data.split(' ', 1)[1]
-            if os.path.exists(path):
-                print('File already exists')
-                return
             torrent = TorrentFile.load(path)
             if torrent.hash not in [t.hash for t in self.torrents]:
                 self.torrents.append(torrent)
