@@ -328,6 +328,8 @@ class Client:
         if conn == self.conn_bootstrap:
             send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
         else:
+            if packet.hash not in self.active_seeders:
+                self.active_seeders[packet.hash] = []
             self.active_seeders[packet.hash].append(conn)
 
 
