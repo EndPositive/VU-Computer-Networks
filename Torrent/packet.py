@@ -1,5 +1,6 @@
 from util import addr_to_bytes, addr_from_bytes
 
+
 class MalformedFrameError(Exception):
     def __init__(self, expression=None, message=None):
         self.expression = expression

@@ -6,7 +6,7 @@ from util import *
 from torrent import *
 from random import randint
 from platform import system
-import os
+
 
 class Client:
     def __init__(self):
@@ -178,6 +178,9 @@ class Client:
             self.request_seeders(data)
             time.sleep(1)
 
+            if len(self.seeders[torrent.hash]) == 0:
+                raise ModuleNotFoundError
+
             # Main download loop
             while True:
                 # Try to download from more seeders if limit isn't reached
@@ -201,17 +204,19 @@ class Client:
                     # Punch an idle seeder
                     self.send_punch(idle_seeders[0])
 
+                    # Mark the seeders as active
+                    self.active_seeders[torrent.hash].append(idle_seeders[0])
+
                     # Request a download
                     packet.type = 6
                     send(self.__socket, packet.to_bytes(), idle_seeders[0])
-
-                    # Mark the seeders as active
-                    self.active_seeders[torrent.hash].append(idle_seeders[0])
                 else:
                     # Wait a bit before trying again
                     time.sleep(1)
         except IndexError:
             print("Usage: download torrent_id\nGet list of seeders of a torrent.")
+        except ModuleNotFoundError:
+            print("No seeders where found at this time, please try again later.")
 
     def send_piece(self, packet, conn):
         try:
@@ -227,7 +232,10 @@ class Client:
         try:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             torrent.add_piece(packet.piece_no, data=packet.data)
-            self.active_seeders[torrent.hash].remove(conn)
+            if conn in self.active_seeders[hash]:
+                self.active_seeders[torrent.hash].remove(conn)
+            if torrent.hash not in self.counter:
+                self.counter[torrent.hash] = 0
             self.counter[torrent.hash] += 1
             print("Succesfully received a piece for torrent", torrent.id)
         except IndexError:
@@ -245,8 +253,8 @@ class Client:
 
     def receive_seeders(self, packet):
         self.seeders[packet.hash] = packet.seeders
-        self.active_seeders[packet.hash] = []
-        print(packet.seeders)
+        if packet.hash not in self.active_seeders:
+            self.active_seeders[packet.hash] = []
 
     def receive_punch(self, packet, sender):
         # Only respond to pull if it is a request (comes from bootstrap)
@@ -309,7 +317,8 @@ class Client:
             for hash in connections:
                 for conn in connections[hash]:
                     packet.hash = hash
-                    self.active_seeders[hash].remove(conn)
+                    if conn in self.active_seeders[hash]:
+                        self.active_seeders[hash].remove(conn)
                     send(self.__socket, packet.to_bytes(), conn)
             # Ping every 15 seconds. NAT's remove entries after
             # about 60sec but it varies....

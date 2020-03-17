@@ -6,6 +6,7 @@ from os.path import basename, splitext, getsize
 
 mutex = Lock()
 
+
 class Torrent:
     def __init__(self, _path, _piece_size=1000, _id=0, _hash=None, _pieces=None, _server=('80.112.140.14', 65400), _file_size=None):
         self.file = File(_path, _piece_size)
