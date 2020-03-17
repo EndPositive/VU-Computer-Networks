@@ -27,7 +27,6 @@ class Torrent:
         self.file_size = _file_size
         if self.file_size is None:
             self.file_size = getsize(self.file.path)
-        self.file_size = _file_size
 
         self.__curr_piece = 0
 
