@@ -43,7 +43,7 @@ class Client:
         ping_thread = threading.Thread(target=self.__ping)
         ping_thread.setDaemon(True)
         ping_thread.start()
-        speed_thread = threading.Thread(target=self.__ping)
+        speed_thread = threading.Thread(target=self.__speed)
         speed_thread.setDaemon(True)
         speed_thread.start()
         while True:
@@ -52,29 +52,32 @@ class Client:
     def __push(self):
         while True:
             inp = input("> ")
-            if "!seed" in inp:
-                self.push_sign_out(inp)
-            elif "seeders" in inp:
-                self.push_list(inp)
-            elif "seed" in inp:
-                self.push_sign_in(inp)
-            elif "list" in inp:
+            spl = inp.split(" ")
+
+            if len(spl) == 0:
+                continue
+
+            # Torrent
+            if spl[0] == "load":
+                self.load_torrent(inp)
+            elif spl[0] == "generate":
+                self.generate_torrent(inp)
+            elif inp[0] == "list":
                 if not len(self.torrents):
-                    print("No torrents available.\nUse create to add new torrents.")
+                    print("No torrents available.\nUse load or generate to add new torrents.")
                 for torrent in self.torrents:
                     print(torrent.id, torrent.file.path, torrent.hash)
-            elif "create" in inp:
-                self.push_create(inp)
-            elif "remove" in inp:
-                self.pull_remove_torrent(inp)
+            elif inp[0] == "remove":
+                self.remove_torrent(inp)
+            # Seeding
+            elif spl[0] == "seed":
+                self.start_seeding(inp)
+            elif spl[0] == "!seed":
+                self.stop_seeding(inp)
+            # Download
             elif "download" in inp:
-                self.request_download(inp)
-            elif "load" in inp:
-                self.load_from_file(inp)
-            elif "generate" in inp:
-                self.generate_torrent_file(inp)
-            else:
-                print("Unknown command")
+                self.start_download(inp)
+
             save_torrents(self.torrents)
             time.sleep(0.2)
 
@@ -86,36 +89,58 @@ class Client:
                 return
             packet = Packet(res)
 
-            if packet.type == 0:
-                pass
-            # SIGN OUT
-            elif packet.type == 1:
-                pass
             # PING
-            elif packet.type == 2:
-                self.pull_ping(packet, conn)
+            if packet.type == 2:
+                self.receive_ping(packet, conn)
             # LIST SEEDERS
             elif packet.type == 3:
-                self.pull_list(packet)
-            # CREATE HASH/TORRENT
-            elif packet.type == 4:
-                pass
-            # ERROR MESSAGE
-            elif packet.type == 5:
-                pass
+                self.receive_seeders(packet)
             # REQUEST FOR DOWNLOAD
             elif packet.type == 6:
-                self.send_download(packet, conn)
+                self.send_piece(packet, conn)
             # DOWNLOAD OF PIECE
             elif packet.type == 7:
-                self.receive_download(packet, conn)
+                self.receive_piece(packet, conn)
+            # PUNCHING
             elif packet.type == 8 or packet.type == 9:
-                self.pull_punch(packet, conn)
+                self.receive_punch(packet, conn)
             else:
                 print("Unknown type", res)
             save_torrents(self.torrents)
 
-    def push_sign_in(self, data):
+    def load_torrent(self, data):
+        try:
+            path = data.split(' ', 1)[1]
+            new_torrent = TorrentFile.load(path)
+            if new_torrent.hash not in [t.hash for t in self.torrents]:
+                self.torrents.append(new_torrent)
+            else:
+                print("Torrent is already added")
+
+            # Also make sure that the torrent is available on the bootstrap
+            packet = Packet()
+            packet.type = 4
+            packet.hash = new_torrent.hash
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        except IndexError:
+            print("Usage: load /path/to/file\nLoad a torrent from a torrent file")
+        except FileNotFoundError:
+            print("The file does not exists")
+
+    def generate_torrent(self, data):
+        try:
+            index, path = data.split(' ', 2)[1:]
+            TorrentFile.dump(self.torrents[int(index)], path)
+        except (IndexError, TypeError, ValueError):
+            print("Usage: generate id /path/to/file\nGenerate a torrent file for a given torrent")
+
+    def remove_torrent(self, data):
+        try:
+            self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
+        except IndexError:
+            print("Usage: remove torrent_id\nRemove a torrent from local cache (does not delete downloaded file).")
+
+    def start_seeding(self, data):
         try:
             torrent = self.torrents[int(data.split(" ")[1])]
             packet = Packet()
@@ -125,7 +150,7 @@ class Client:
         except IndexError:
             print("Usage: seed torrent_id\nStart seeding a torrent.")
 
-    def push_sign_out(self, data):
+    def stop_seeding(self, data):
         try:
             torrent = self.torrents[int(data.split(" ")[1])]
             packet = Packet()
@@ -135,7 +160,64 @@ class Client:
         except IndexError:
             print("Usage: !seed torrent_id\nStop seeding a torrent.")
 
-    def push_list(self, data):
+    def start_download(self, data):
+        try:
+            packet = Packet()
+            torrent = self.torrents[int(data.split(" ")[1])]
+            packet.hash = torrent.hash
+
+            # Main download loop
+            while True:
+                # Try to download from more seeders if limit isn't reached
+                if len(self.active_seeders[torrent.hash]) < self.max_active_seeders:
+                    # Get seeders list
+                    self.request_seeders(data)
+                    time.sleep(1)
+
+                    # Find punched seeders who are not seeding yet
+                    idle_seeders = [s for s in self.seeders[torrent.hash] if s not in self.active_seeders]
+
+                    if len(idle_seeders) == 0:
+                        # Wait a bit before trying again
+                        time.sleep(1)
+
+                    # Punch an idle seeder
+                    self.send_punch(idle_seeders[0])
+
+                    # Request a download
+                    packet.type = 6
+                    packet.piece_no = torrent.get_piece_no()
+                    send(self.__socket, packet.to_bytes(), idle_seeders[0])
+
+                    # Mark the seeders as active
+                    self.active_seeders[torrent.hash].append(idle_seeders[0])
+                else:
+                    # Wait a bit before trying again
+                    time.sleep(1)
+        except IndexError:
+            print("Usage: download torrent_id\nGet list of seeders of a torrent.")
+
+    def send_piece(self, packet, conn):
+        try:
+            torrent = [t for t in self.torrents if t.hash == packet.hash][0]
+            packet.type = 7
+            packet.data = torrent.get_piece(packet.piece_no)
+            send(self.__socket, packet.to_bytes(), conn)
+            print("Sending a piece for torrent", torrent.id)
+        except IndexError:
+            print("Received a request for an unknown torrent", packet.hash, packet)
+
+    def receive_piece(self, packet, conn):
+        try:
+            torrent = [t for t in self.torrents if t.hash == packet.hash][0]
+            torrent.add_piece(packet.piece_no, data=packet.data)
+            self.active_seeders[torrent.hash].remove(conn)
+            self.counter[torrent.hash] += 1
+            print("Succesfully received a piece for torrent", torrent.id)
+        except IndexError:
+            print("Received a piece of an unknown torrent", packet.hash, packet)
+
+    def request_seeders(self, data):
         try:
             torrent = self.torrents[int(data.split(" ")[1])]
             packet = Packet()
@@ -145,36 +227,16 @@ class Client:
         except IndexError:
             print("Usage: seeders torrent_id\nGet list of seeders of a torrent.")
 
-    def push_create(self, data):
-        try:
-            torrent = Torrent(data.split(" ")[1], 10, len(self.torrents))
-            self.torrents.append(torrent)
-            packet = Packet()
-            packet.type = 4
-            packet.hash = torrent.hash
-            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
-        except IndexError:
-            print("Usage: create /path/to/file\nAnnounce a torrent at the bootstrap.")
-        except FileNotFoundError:
-            print("File not found, try again.")
-
-    def pull_ping(self, packet, conn):
-        if conn == self.conn_bootstrap:
-            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
-        else:
-            torrent = [t for t in self.torrents if t.hash == packet.hash][0]
-            self.push_sign_in("seed " + str(torrent.id))
-
-    def pull_list(self, packet):
+    def receive_seeders(self, packet):
         self.seeders[packet.hash] = packet.seeders
         print(packet.seeders)
 
-    def pull_punch(self, packet, sender):
+    def receive_punch(self, packet, sender):
         # Only respond to pull if it is a request (comes from bootstrap)
         if sender == self.conn_bootstrap:
             print("Received punch request")
             to_be_punched = packet.seeders[0]
-            punch_thread = threading.Thread(target=self.punch, args=(packet, to_be_punched))
+            punch_thread = threading.Thread(target=self.send_punch, args=(packet, to_be_punched))
             punch_thread.setDaemon(True)
             punch_thread.start()
             return
@@ -189,7 +251,7 @@ class Client:
             self.punched_other = True
             print("Punched", sender)
 
-    def punch(self, conn):
+    def send_punch(self, conn):
         packet = Packet()
 
         # Tell the bootstrap you want to start punching someone
@@ -212,6 +274,16 @@ class Client:
         packet.type = 9
         send(self.__socket, packet.to_bytes(), conn)
 
+    def __speed(self):
+        while True:
+            total_speed = 0
+            for hash in self.counter:
+                self.speed[hash] = self.counter[hash]
+                self.counter[hash] = 0
+                total_speed += self.speed[hash]
+            self.total_speed = total_speed
+            time.sleep(1)
+
     def __ping(self):
         packet = Packet()
         packet.type = 2
@@ -226,96 +298,12 @@ class Client:
             # about 60sec but it varies....
             time.sleep(15)
 
-    def __download_speed(self):
-        time.sleep(1)
-        total_speed = 0
-        for hash in self.counter:
-            self.speed[hash] = self.counter[hash]
-            self.counter[hash] = 0
-            total_speed += self.speed[hash]
-        self.total_speed = total_speed
-
-    def request_download(self, data):
-        try:
-            packet = Packet()
-            torrent = self.torrents[int(data.split(" ")[1])]
-            packet.hash = torrent.hash
-
-            # Main download loop
-            while True:
-                # Try to download from more seeders if limit isn't reached
-                if len(self.active_seeders[torrent.hash]) < self.max_active_seeders:
-                    # Get seeders list
-                    self.push_list(data)
-                    time.sleep(1)
-
-                    # Find punched seeders who are not seeding yet
-                    idle_seeders = [s for s in self.seeders[torrent.hash] if s not in self.active_seeders]
-
-                    if len(idle_seeders) == 0:
-                        # Wait a bit before trying again
-                        time.sleep(1)
-
-                    # Punch an idle seeder
-                    self.punch(idle_seeders[0])
-
-                    # Request a download
-                    packet.type = 6
-                    packet.piece_no = torrent.get_piece_no()
-                    send(self.__socket, packet.to_bytes(), idle_seeders[0])
-
-                    # Mark the seeders as active
-                    self.active_seeders[torrent.hash].append(idle_seeders[0])
-                else:
-                    # Wait a bit before trying again
-                    time.sleep(1)
-        except IndexError:
-            print("Usage: download torrent_id\nGet list of seeders of a torrent.")
-
-    def send_download(self, packet, conn):
-        try:
+    def receive_ping(self, packet, conn):
+        if conn == self.conn_bootstrap:
+            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+        else:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
-            packet.type = 7
-            packet.data = torrent.get_piece(packet.piece_no)
-            send(self.__socket, packet.to_bytes(), conn)
-            print("Sending a piece for torrent", torrent.id)
-        except IndexError:
-            print("Received a request for an unknown torrent", packet.hash, packet)
-
-    def receive_download(self, packet, conn):
-        try:
-            torrent = [t for t in self.torrents if t.hash == packet.hash][0]
-            torrent.add_piece(packet.piece_no, data=packet.data)
-            self.active_seeders[torrent.hash].remove(conn)
-            self.counter[torrent.hash] += 1
-            print("Succesfully received a piece for torrent", torrent.id)
-        except IndexError:
-            print("Received a piece of an unknown torrent", packet.hash, packet)
-
-    def pull_remove_torrent(self, data):
-        try:
-            self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
-        except IndexError:
-            print("Usage: remove torrent_id\nRemove a torrent from local cache (does not delete downloaded file).")
-
-    def load_from_file(self, data):
-        try:
-            path = data.split(' ', 1)[1]
-            new_torrent = TorrentFile.load(path)
-            if new_torrent.hash not in [t.hash for t in self.torrents]:
-                self.torrents.append(new_torrent)
-        except IndexError:
-            print("Usage: load /path/to/file\nLoad a torrent from a torrent file")
-        except FileNotFoundError:
-            print("The file does not exists")
-
-    def generate_torrent_file(self, data):
-        try:
-            index, path = data.split(' ', 2)[1:]
-            TorrentFile.dump(self.torrents[int(index)], path)
-        except (IndexError, TypeError, ValueError):
-            print("Usage: generate id /path/to/file\nGenerate a torrent file for a given torrent")
-
+            self.start_seeding("seed " + str(torrent.id))
 
 
 if __name__ == "__main__":

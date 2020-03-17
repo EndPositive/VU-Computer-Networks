@@ -27,36 +27,25 @@ class Bootstrap:
             if not res:
                 break
             packet = Packet(res)
-            print(packet.type)
+
             # SIGN IN
             if packet.type == 0:
-                self.pull_sign_in(packet, conn)
+                self.h_start_seeding(packet, conn)
             # SIGN OUT
             elif packet.type == 1:
-                self.pull_sign_out(packet, conn)
+                self.h_stop_seeding(packet, conn)
             # PING
             elif packet.type == 2:
-                self.pull_sign_in(packet, conn, False)
+                self.h_start_seeding(packet, conn, False)
             # LIST SEEDERS
             elif packet.type == 3:
-                self.pull_list(packet, conn)
+                self.h_request_seeders(packet, conn)
             # CREATE HASH/TORRENT
             elif packet.type == 4:
-                self.pull_create(packet, conn)
-            # ERROR MESSAGE
-            elif packet.type == 5:
-                pass
-            # REQUEST FOR DOWNLOAD
-            elif packet.type == 6:
-                pass
-            # DOWNLOAD OF PIECE
-            elif packet.type == 7:
-                pass
+                self.h_create(packet, conn)
             # REQUEST HOLE PUNCH
             elif packet.type == 8:
-                self.pull_punch(packet, conn)
-            else:
-                print("Unknown type", res)
+                self.h_punch(packet, conn)
         conn.close()
 
     def __ping(self):
@@ -73,48 +62,48 @@ class Bootstrap:
             # about 60sec but it varies....
             time.sleep(15)
 
-    def pull_sign_in(self, packet, conn, needs_response=True):
+    def h_start_seeding(self, packet, conn, needs_response=True):
         if packet.hash in self.connections:
             if conn not in self.connections[packet.hash]:
                 self.connections[packet.hash].append(conn)
             else:
-                self.pull_error(packet, conn, 2)
+                self.h_error(packet, conn, 2)
                 return
             if needs_response:
                 send(self.__socket, packet.to_bytes(), conn)
         else:
-            self.pull_error(packet, conn, 0)
+            self.h_error(packet, conn, 0)
 
-    def pull_sign_out(self, packet, conn):
+    def h_stop_seeding(self, packet, conn):
         if packet.hash in self.connections:
             self.connections[packet.hash].remove(conn)
             send(self.__socket, packet.to_bytes(), conn)
         else:
-            self.pull_error(packet, conn, 0)
+            self.h_error(packet, conn, 0)
 
-    def pull_list(self, packet, conn):
+    def h_request_seeders(self, packet, conn):
         if packet.hash in self.connections:
             packet.seeders = self.connections[packet.hash]
             send(self.__socket, packet.to_bytes(), conn)
         else:
-            self.pull_error(packet, conn, 0)
+            self.h_error(packet, conn, 0)
 
-    def pull_create(self, packet, conn):
+    def h_create(self, packet, conn):
         if packet.hash not in self.connections:
             self.connections[packet.hash] = []
             send(self.__socket, packet.to_bytes(), conn)
         else:
-            self.pull_error(packet, conn, 1)
+            self.h_error(packet, conn, 1)
 
-    def pull_error(self, packet, conn, num):
-        packet.type = 5
-        packet.err = num
-        send(self.__socket, packet.to_bytes(), conn)
-
-    def pull_punch(self, packet, to_be_punched):
+    def h_punch(self, packet, to_be_punched):
         to_punch = packet.seeders[0]
         packet.seeders[0] = to_be_punched
         send(self.__socket, packet.to_bytes(), to_punch)
+
+    def h_error(self, packet, conn, num):
+        packet.type = 5
+        packet.err = num
+        send(self.__socket, packet.to_bytes(), conn)
 
 
 if __name__ == "__main__":
