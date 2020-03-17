@@ -174,6 +174,10 @@ class Client:
             torrent = self.torrents[int(data.split(" ")[1])]
             packet.hash = torrent.hash
 
+            # Get seeders list
+            self.request_seeders(data)
+            time.sleep(1)
+
             # Main download loop
             while True:
                 # Try to download from more seeders if limit isn't reached
@@ -241,6 +245,7 @@ class Client:
 
     def receive_seeders(self, packet):
         self.seeders[packet.hash] = packet.seeders
+        self.active_seeders[packet.hash] = []
         print(packet.seeders)
 
     def receive_punch(self, packet, sender):
