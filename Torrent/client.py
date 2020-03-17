@@ -186,6 +186,11 @@ class Client:
             while True:
                 # Try to download from more seeders if limit isn't reached
                 if len(self.active_seeders[torrent.hash]) < self.max_active_seeders:
+                    # Find an available piece number
+                    packet.piece_no = torrent.get_piece_no()
+                    if packet.piece_no == -1:
+                        break
+
                     # Get seeders list
                     self.request_seeders(data)
                     time.sleep(1)
@@ -202,9 +207,6 @@ class Client:
 
                     # Request a download
                     packet.type = 6
-                    packet.piece_no = torrent.get_piece_no()
-                    if packet.piece_no == -1:
-                        break
                     send(self.__socket, packet.to_bytes(), idle_seeders[0])
 
                     # Mark the seeders as active
