@@ -35,7 +35,12 @@ class Client:
     def start(self):
         host_name = socket.gethostname()
         host_ip = socket.gethostbyname(host_name)
-        self.__socket.bind((host_ip, randint(49152, 65535)))
+        while True:
+            try:
+                self.__socket.bind((host_ip, randint(49152, 65535)))
+                break
+            except:
+                pass
         self.torrents = load_torrents()
         # Connect to bootstrap
         pull_thread = threading.Thread(target=self.__pull)
