@@ -266,7 +266,7 @@ class Client:
         if sender == self.conn_bootstrap:
             print("Received punch request")
             to_be_punched = packet.seeders[0]
-            punch_thread = threading.Thread(target=self.send_punch, args=(to_be_punched,))
+            punch_thread = threading.Thread(target=self.send_punch, args=(packet, to_be_punched))
             punch_thread.setDaemon(True)
             punch_thread.start()
             return
@@ -281,10 +281,7 @@ class Client:
             self.punched_other = True
             print("Punched", sender)
 
-    def send_punch(self, conn):
-        packet = Packet()
-        packet.type = 8
-
+    def send_punch(self, packet, conn):
         self.punched = False
         self.punched_other = False
         # We have not been punched yet
