@@ -232,7 +232,7 @@ class Client:
         try:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             torrent.add_piece(packet.piece_no, data=packet.data)
-            if conn in self.active_seeders[hash]:
+            if conn in self.active_seeders[torrent.hash]:
                 self.active_seeders[torrent.hash].remove(conn)
             if torrent.hash not in self.counter:
                 self.counter[torrent.hash] = 0
