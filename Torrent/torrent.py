@@ -2,7 +2,7 @@ import pickle
 from file_manager import File
 from hashlib import md5
 from threading import Lock
-from os.path import basename
+from os.path import basename, splitext
 
 mutex = Lock()
 
@@ -93,7 +93,7 @@ class TorrentFile:
         )
 
     @staticmethod
-    def dump(obj, path=None):
+    def dump(obj, path):
         obj = {
             'file_name': basename(obj.file.path),
             'server': obj.server,
@@ -102,11 +102,12 @@ class TorrentFile:
             'hash': obj.hash
         }
 
-        if path is not None:
-            with open(path, 'wb') as fp:
-                pickle.dump(obj, fp)
+        path = splitext(path)[0] + ".torr"
 
-        return obj
+        with open(path, 'wb') as fp:
+            pickle.dump(obj, fp)
+
+        return path
 
 
 def save_torrents(torrent_list, file_name='config'):

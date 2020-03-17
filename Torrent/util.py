@@ -17,12 +17,12 @@ def receive(sock, size):
         data, conn = sock.recvfrom(size)
         print("IN:   ", data, conn)
         if not data:
-            return False
+            return False, False
         else:
             return data, conn
     except socket.error as e:
         print(e)
-        return False
+        return False, False
 
 
 def addr_to_bytes(addr):

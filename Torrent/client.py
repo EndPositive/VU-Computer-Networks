@@ -4,6 +4,7 @@ import copy
 from packet import *
 from util import *
 from torrent import *
+from random import randint
 
 
 class Client:
@@ -32,6 +33,9 @@ class Client:
         self.total_speed = 0
 
     def start(self):
+        host_name = socket.gethostname()
+        host_ip = socket.gethostbyname(host_name)
+        self.__socket.bind((host_ip, randint(49152, 65535)))
         self.torrents = load_torrents()
         # Connect to bootstrap
         pull_thread = threading.Thread(target=self.__pull)
@@ -62,12 +66,12 @@ class Client:
                 self.load_torrent(inp)
             elif spl[0] == "generate":
                 self.generate_torrent(inp)
-            elif inp[0] == "list":
+            elif spl[0] == "list":
                 if not len(self.torrents):
                     print("No torrents available.\nUse load or generate to add new torrents.")
                 for torrent in self.torrents:
                     print(torrent.id, torrent.file.path, torrent.hash)
-            elif inp[0] == "remove":
+            elif spl[0] == "remove":
                 self.remove_torrent(inp)
             # Seeding
             elif spl[0] == "seed":
@@ -78,6 +82,8 @@ class Client:
             elif "download" in inp:
                 self.start_download(inp)
 
+            else:
+                print("Unknown command")
             save_torrents(self.torrents)
             time.sleep(0.2)
 
@@ -104,24 +110,18 @@ class Client:
             # PUNCHING
             elif packet.type == 8 or packet.type == 9:
                 self.receive_punch(packet, conn)
-            else:
-                print("Unknown type", res)
             save_torrents(self.torrents)
 
     def load_torrent(self, data):
         try:
             path = data.split(' ', 1)[1]
-            new_torrent = TorrentFile.load(path)
-            if new_torrent.hash not in [t.hash for t in self.torrents]:
-                self.torrents.append(new_torrent)
+            torrent = TorrentFile.load(path)
+            if torrent.hash not in [t.hash for t in self.torrents]:
+                self.torrents.append(torrent)
             else:
                 print("Torrent is already added")
 
-            # Also make sure that the torrent is available on the bootstrap
-            packet = Packet()
-            packet.type = 4
-            packet.hash = new_torrent.hash
-            send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+            self.enable_torrent(torrent)
         except IndexError:
             print("Usage: load /path/to/file\nLoad a torrent from a torrent file")
         except FileNotFoundError:
@@ -129,9 +129,12 @@ class Client:
 
     def generate_torrent(self, data):
         try:
-            index, path = data.split(' ', 2)[1:]
-            TorrentFile.dump(self.torrents[int(index)], path)
-        except (IndexError, TypeError, ValueError):
+            path = data.split(" ")[1]
+            torrent = Torrent(path, 1000, len(self.torrents))
+            path = TorrentFile.dump(torrent, path)
+            print("Saved torrent file:", path)
+            self.enable_torrent(torrent)
+        except (IndexError, TypeError, ValueError) as e:
             print("Usage: generate id /path/to/file\nGenerate a torrent file for a given torrent")
 
     def remove_torrent(self, data):
@@ -139,6 +142,14 @@ class Client:
             self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
         except IndexError:
             print("Usage: remove torrent_id\nRemove a torrent from local cache (does not delete downloaded file).")
+
+    def enable_torrent(self, torrent):
+        self.torrents.append(torrent)
+        print("Asking bootstrap to list this torrent")
+        packet = Packet()
+        packet.type = 4
+        packet.hash = torrent.hash
+        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
     def start_seeding(self, data):
         try:
