@@ -29,7 +29,7 @@ class Client:
         # Counter for how many pieces we are receiving
         self.counter = {}
         self.speed = {}
-        self.total_speed = 0;
+        self.total_speed = 0
 
     def start(self):
         self.torrents = load_torrents()
@@ -69,6 +69,10 @@ class Client:
                 self.pull_remove_torrent(inp)
             elif "download" in inp:
                 self.request_download(inp)
+            elif "load" in inp:
+                self.load_from_file(inp)
+            elif "generate" in inp:
+                self.generate_torrent_file(inp)
             else:
                 print("Unknown command")
             save_torrents(self.torrents)
@@ -293,6 +297,25 @@ class Client:
             self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
         except IndexError:
             print("Usage: remove torrent_id\nRemove a torrent from local cache (does not delete downloaded file).")
+
+    def load_from_file(self, data):
+        try:
+            path = data.split(' ', 1)[1]
+            new_torrent = TorrentFile.load(path)
+            if new_torrent.hash not in [t.hash for t in self.torrents]:
+                self.torrents.append(new_torrent)
+        except IndexError:
+            print("Usage: load /path/to/file\nLoad a torrent from a torrent file")
+        except FileNotFoundError:
+            print("The file does not exists")
+
+    def generate_torrent_file(self, data):
+        try:
+            index, path = data.split(' ', 2)[1:]
+            TorrentFile.dump(self.torrents[int(index)], path)
+        except (IndexError, TypeError, ValueError):
+            print("Usage: generate id /path/to/file\nGenerate a torrent file for a given torrent")
+
 
 
 if __name__ == "__main__":
