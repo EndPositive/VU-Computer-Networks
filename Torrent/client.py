@@ -352,7 +352,6 @@ class Client:
         while True:
             connections = copy.deepcopy(self.punched_seeders)
             for conn in connections:
-                packet.hash = hash
                 if conn in self.punched_seeders:
                     self.punched_seeders.remove(conn)
                 send(self.__socket, packet.to_bytes(), conn)
@@ -364,8 +363,6 @@ class Client:
         if conn == self.conn_bootstrap:
             send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
         else:
-            if packet.hash not in self.punched_seeders:
-                self.punched_seeders = []
             self.punched_seeders.append(conn)
 
 
