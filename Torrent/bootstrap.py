@@ -82,7 +82,7 @@ class Bootstrap:
             send(self.__socket, packet.to_bytes(), conn)
         else:
             packet.seeders = []
-            self.h_error(packet, conn, 0)
+            send(self.__socket, packet.to_bytes(), conn)
 
     def h_punch(self, packet, to_be_punched):
         to_punch = packet.seeders[0]
