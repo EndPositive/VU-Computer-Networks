@@ -148,7 +148,7 @@ class Client:
             if not exists(path):
                 print('File', path, 'doesn\'t exist')
                 return
-            torrent = Torrent(path, 1000000, len(self.torrents))
+            torrent = Torrent(path, 65000, len(self.torrents))
             path = TorrentFile.dump(torrent, path)
             print("Saved torrent file:", path)
             self.torrents.append(torrent)
