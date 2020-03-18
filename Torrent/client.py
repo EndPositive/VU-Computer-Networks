@@ -263,12 +263,13 @@ class Client:
             packet.type = 7
             packet.data = torrent.get_piece(packet.piece_no)
             send(self.__socket, packet.to_bytes(), conn)
-            print("Sending a piece for torrent", torrent.id)
+            print("Sending piece " + packet.piece_no + " for torrent", torrent.id)
         except IndexError:
             print("Received a request for an unknown torrent", packet.hash, packet)
 
     def receive_piece(self, packet, conn):
         try:
+            print()
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             torrent.add_piece(packet.piece_no, data=packet.data)
 
@@ -280,7 +281,7 @@ class Client:
             if torrent.hash not in self.counter:
                 self.counter[torrent.hash] = 0
             self.counter[torrent.hash] += 1
-            print("Succesfully received a piece for torrent", torrent.id)
+            print("Succesfully received piece " + str(packet.piece_no) + " for torrent", torrent.id)
         except IndexError:
             print("Received a piece of an unknown torrent", packet.hash, packet)
 
