@@ -93,7 +93,7 @@ class Client:
 
             else:
                 print("Unknown command")
-            save_torrents(self.torrents)
+            # save_torrents(self.torrents)
             time.sleep(0.2)
 
     def __pull(self):
@@ -119,7 +119,7 @@ class Client:
             # PUNCHING
             elif packet.type == 8 or packet.type == 9:
                 self.receive_punch(packet, conn)
-            save_torrents(self.torrents)
+            # save_torrents(self.torrents)
 
     def load_torrent(self, data):
         try:
@@ -148,7 +148,7 @@ class Client:
             if not exists(path):
                 print('File', path, 'doesn\'t exist')
                 return
-            torrent = Torrent(path, 1000, len(self.torrents))
+            torrent = Torrent(path, 1000000, len(self.torrents))
             path = TorrentFile.dump(torrent, path)
             print("Saved torrent file:", path)
             self.torrents.append(torrent)
