@@ -209,7 +209,6 @@ class Client:
 
                     # Get seeders list
                     self.request_seeders(data)
-                    time.sleep(1)
 
                     # Find users which are not being requested yet
                     idle_seeders = [s for s in self.seeders[torrent.hash] if s not in self.requests[torrent.hash]]
