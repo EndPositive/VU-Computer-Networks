@@ -134,7 +134,6 @@ class Client:
                     return
 
             if torrent.hash not in [t.hash for t in self.torrents]:
-                print('You already have', str(len(torrent.pieces)))
                 self.torrents.append(torrent)
             else:
                 print("Torrent is already added")
