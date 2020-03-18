@@ -311,7 +311,7 @@ class Client:
 
         # Its am actual punch and we have not been punched yet
         if not self.punched[sender]:
-            self.punched = True
+            self.punched[sender] = True
             print("Punched by", sender)
 
         # If the packet is of type 9, the other client has been punched
