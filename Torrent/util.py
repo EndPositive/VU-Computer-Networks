@@ -4,7 +4,7 @@ from hashlib import md5
 
 def send(sock, data, conn):
     try:
-        print("OUT: ", data, conn)
+        # print("OUT: ", data, conn)
         sock.sendto(data, conn)
         return True
     except socket.error as e:
@@ -15,7 +15,7 @@ def send(sock, data, conn):
 def receive(sock, size):
     try:
         data, conn = sock.recvfrom(size)
-        print("IN:   ", data, conn)
+        # print("IN:   ", data, conn)
         if not data:
             return False, False
         else:
