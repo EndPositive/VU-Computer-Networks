@@ -2,7 +2,7 @@ import pickle
 from file_manager import File
 from hashlib import md5
 from threading import Lock
-from os.path import basename, splitext, getsize
+from os.path import basename, splitext, getsize, exists
 
 mutex = Lock()
 
@@ -83,7 +83,7 @@ class Torrent:
 
 class TorrentFile:
     @staticmethod
-    def load(path):
+    def load(path, overwrite=False):
         with open(path, 'rb') as fp:
             obj = pickle.load(fp)
             file_name = obj['file_name']
@@ -91,6 +91,9 @@ class TorrentFile:
             piece_size = obj['piece_size']
             file_size = obj['file_size']
             hash_val = obj['hash']
+
+        if not overwrite and exists(file_name):
+            return None
 
         return Torrent(
             _path=file_name,

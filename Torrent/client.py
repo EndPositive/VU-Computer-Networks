@@ -125,6 +125,14 @@ class Client:
         try:
             path = data.split(' ', 1)[1]
             torrent = TorrentFile.load(path)
+            if torrent is None:
+                print('File already exists. Overwrite? Y/[N]: ', end='')
+                to_overwrite = input()
+                if to_overwrite.upper().startswith('Y'):
+                    torrent = TorrentFile.load(path, overwrite=True)
+                else:
+                    return
+
             if torrent.hash not in [t.hash for t in self.torrents]:
                 self.torrents.append(torrent)
             else:
