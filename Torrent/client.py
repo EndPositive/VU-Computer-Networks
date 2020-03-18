@@ -348,7 +348,8 @@ class Client:
                 self.counter[hash] = 0
                 total_speed += self.speed[hash]
             self.total_speed = total_speed
-            print("Downloaded " + str(self.total_speed) + " pieces in last second")
+            if self.total_speed > 0:
+                print("Downloaded " + str(self.total_speed) + " pieces in last second")
             time.sleep(1)
 
     def __ping(self):
