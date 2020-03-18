@@ -223,12 +223,16 @@ class Client:
                             requests[conn] = num
                         print(requests)
 
-                        seeder = min(requests, key=requests.get)
+                        if len(requests):
+                            seeder = min(requests, key=requests.get)
+                        else:
+                            time.sleep(0.5)
+                            continue
 
                         # If the fewest used active seeder is already used a lot
                         if requests[seeder] > self.max_requests_per_seeder:
                             time.sleep(1)
-                            break
+                            continue
                     else:
                         seeder = idle_seeders[0]
 
