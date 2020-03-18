@@ -334,6 +334,7 @@ class Client:
         # Final punch
         packet.type = 9
         send(self.__socket, packet.to_bytes(), conn)
+        self.punched_seeders.append(conn)
 
     def __speed(self):
         while True:
