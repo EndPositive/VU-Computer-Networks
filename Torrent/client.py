@@ -145,6 +145,9 @@ class Client:
     def generate_torrent(self, data):
         try:
             path = data.split(" ")[1]
+            if not exists(path):
+                print('File', path, 'doesn\'t exist')
+                return
             torrent = Torrent(path, 1000, len(self.torrents))
             path = TorrentFile.dump(torrent, path)
             print("Saved torrent file:", path)
