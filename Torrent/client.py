@@ -214,7 +214,8 @@ class Client:
 
                     # Find users which are not being requested yet
                     idle_seeders = [s for s in self.seeders[torrent.hash] if s not in self.requests[torrent.hash]]
-
+                    print(idle_seeders)
+                    print(self.requests[torrent.hash])
                     # If there are no idle seeders, find a seeder who is not very busy
                     if len(idle_seeders) == 0:
                         # Find fewest used active seeder
@@ -222,6 +223,7 @@ class Client:
                         for conn in self.requests[torrent.hash]:
                             num = self.requests[torrent.hash].count(conn)
                             requests[conn] = num
+                        print(requests)
 
                         seeder = min(requests, key=requests.get)
 
