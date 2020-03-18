@@ -16,17 +16,19 @@ class Client:
         self.conn_bootstrap = ('80.112.140.14', 65400)
 
         # Variable to know between threads whether we are punched
-        self.punched = False
+        self.punched = {}
         # Variable to know between threads whether the other is punched
-        self.punched_other = False
+        self.punched_other = {}
 
         # List of torrents
         self.torrents = []
 
         # Dict of seeders, punched seeders and active seeders by torrent hash
         self.seeders = {}
-        self.active_seeders = {}
-        self.max_active_seeders = 3
+        self.punched_seeders = []
+        self.requests = {}
+        self.max_requests_per_torrent = 3
+        self.max_requests_per_seeder = 3
 
         # Counter for how many pieces we are receiving
         self.counter = {}
@@ -139,7 +141,7 @@ class Client:
             path = TorrentFile.dump(torrent, path)
             print("Saved torrent file:", path)
             self.torrents.append(torrent)
-        except (IndexError, TypeError, ValueError) as e:
+        except (IndexError, TypeError, ValueError):
             print("Usage: generate id /path/to/file\nGenerate a torrent file for a given torrent")
 
     def remove_torrent(self, data):
@@ -178,13 +180,17 @@ class Client:
             self.request_seeders(data)
             time.sleep(1)
 
+            if torrent.hash not in self.seeders:
+                print("Received no response from the bootstrap. Please check if its online.")
+                return
+
             if len(self.seeders[torrent.hash]) == 0:
                 raise ModuleNotFoundError
 
             # Main download loop
             while True:
                 # Try to download from more seeders if limit isn't reached
-                if len(self.active_seeders[torrent.hash]) < self.max_active_seeders:
+                if len(self.requests[torrent.hash]) < self.max_requests_per_torrent:
                     # Find an available piece number
                     packet.piece_no = torrent.get_piece_no()
                     if packet.piece_no == -1:
@@ -194,27 +200,41 @@ class Client:
                     self.request_seeders(data)
                     time.sleep(1)
 
-                    # Find punched seeders who are not seeding yet
-                    idle_seeders = [s for s in self.seeders[torrent.hash] if s not in self.active_seeders]
+                    # Find users which are not being requested yet
+                    idle_seeders = [s for s in self.seeders[torrent.hash] if s not in self.requests[torrent.hash]]
 
+                    # If there are no idle seeders, find a seeder who is not very busy
                     if len(idle_seeders) == 0:
-                        # Wait a bit before trying again
-                        time.sleep(1)
+                        # Find fewest used active seeder
+                        requests = {}
+                        for conn in self.requests[torrent.hash]:
+                            num = self.requests[torrent.hash].count(conn)
+                            requests[conn] = num
 
-                    # Tell the bootstrap you want to start punching someone
-                    packet.type = 8
-                    packet.seeders.append(idle_seeders[0])
-                    send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+                        seeder = min(requests, key=requests.get)
 
-                    # Punch an idle seeder
-                    self.send_punch(packet, idle_seeders[0])
+                        # If the fewest used active seeder is already used a lot
+                        if requests[seeder] > self.max_requests_per_seeder:
+                            time.sleep(1)
+                            break
+                    else:
+                        seeder = idle_seeders[0]
+
+                    if seeder not in self.punched_seeders:
+                        # Tell the bootstrap you want to start punching someone
+                        packet.type = 8
+                        packet.seeders.append(seeder)
+                        send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
+
+                        # Punch an idle seeder
+                        self.send_punch(packet, seeder)
 
                     # Mark the seeders as active
-                    self.active_seeders[torrent.hash].append(idle_seeders[0])
+                    self.requests[torrent.hash].append(seeder)
 
                     # Request a download
                     packet.type = 6
-                    send(self.__socket, packet.to_bytes(), idle_seeders[0])
+                    send(self.__socket, packet.to_bytes(), seeder)
                 else:
                     # Wait a bit before trying again
                     time.sleep(1)
@@ -237,8 +257,12 @@ class Client:
         try:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             torrent.add_piece(packet.piece_no, data=packet.data)
-            if conn in self.active_seeders[torrent.hash]:
-                self.active_seeders[torrent.hash].remove(conn)
+
+            # Clear seeder from request list
+            if conn in self.requests[torrent.hash]:
+                self.requests[torrent.hash].remove(conn)
+
+            # Count how many pieces we receive
             if torrent.hash not in self.counter:
                 self.counter[torrent.hash] = 0
             self.counter[torrent.hash] += 1
@@ -257,9 +281,12 @@ class Client:
             print("Usage: seeders torrent_id\nGet list of seeders of a torrent.")
 
     def receive_seeders(self, packet):
+        # Refresh the seeder list
         self.seeders[packet.hash] = packet.seeders
-        if packet.hash not in self.active_seeders:
-            self.active_seeders[packet.hash] = []
+
+        # Create a list for this hash if it doesn't exist
+        if packet.hash not in self.requests:
+            self.requests[packet.hash] = []
 
     def receive_punch(self, packet, sender):
         # Only respond to pull if it is a request (comes from bootstrap)
@@ -272,24 +299,24 @@ class Client:
             return
 
         # Its am actual punch and we have not been punched yet
-        if not self.punched:
+        if not self.punched[sender]:
             self.punched = True
             print("Punched by", sender)
 
         # If the packet is of type 9, the other client has been punched
         if packet.type == 9:
-            self.punched_other = True
+            self.punched_other[sender] = True
             print("Punched", sender)
 
     def send_punch(self, packet, conn):
-        self.punched = False
-        self.punched_other = False
+        self.punched[conn] = False
+        self.punched_other[conn] = False
         # We have not been punched yet
-        while True and not self.punched:
+        while True and not self.punched[conn]:
             send(self.__socket, packet.to_bytes(), conn)
             time.sleep(.5)
         # We have been punched, but the other one not yet
-        while True and not self.punched_other:
+        while True and not self.punched_other[conn]:
             packet.type = 9
             send(self.__socket, packet.to_bytes(), conn)
             time.sleep(.5)
@@ -311,13 +338,12 @@ class Client:
         packet = Packet()
         packet.type = 2
         while True:
-            connections = copy.deepcopy(self.active_seeders)
-            for hash in connections:
-                for conn in connections[hash]:
-                    packet.hash = hash
-                    if conn in self.active_seeders[hash]:
-                        self.active_seeders[hash].remove(conn)
-                    send(self.__socket, packet.to_bytes(), conn)
+            connections = copy.deepcopy(self.punched_seeders)
+            for conn in connections:
+                packet.hash = hash
+                if conn in self.punched_seeders:
+                    self.punched_seeders.remove(conn)
+                send(self.__socket, packet.to_bytes(), conn)
             # Ping every 15 seconds. NAT's remove entries after
             # about 60sec but it varies....
             time.sleep(15)
@@ -326,9 +352,9 @@ class Client:
         if conn == self.conn_bootstrap:
             send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
         else:
-            if packet.hash not in self.active_seeders:
-                self.active_seeders[packet.hash] = []
-            self.active_seeders[packet.hash].append(conn)
+            if packet.hash not in self.punched_seeders:
+                self.punched_seeders = []
+            self.punched_seeders.append(conn)
 
 
 if __name__ == "__main__":
