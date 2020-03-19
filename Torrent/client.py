@@ -248,6 +248,7 @@ class Client:
                         # Tell the bootstrap you want to start punching someone
                         packet.type = 8
                         packet.seeders.append(seeder)
+                        print("Request at bootstrap", seeder)
                         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
                         # Punch an idle seeder
@@ -316,8 +317,8 @@ class Client:
     def receive_punch(self, packet, sender):
         # Only respond to pull if it is a request (comes from bootstrap)
         if sender == self.conn_bootstrap:
-            print("Received punch request")
             to_be_punched = packet.seeders[0]
+            print("Received punch request for",to_be_punched)
             punch_thread = threading.Thread(target=self.send_punch, args=(packet, to_be_punched))
             punch_thread.setDaemon(True)
             punch_thread.start()
