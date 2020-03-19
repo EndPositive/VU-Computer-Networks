@@ -243,9 +243,6 @@ class Client:
                         packet.seeders.append(seeder)
                         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
-                        self.punched[seeder] = False
-                        self.punched_other[seeder] = False
-
                         # Punch an idle seeder
                         self.send_punch(packet, seeder)
 
@@ -314,6 +311,8 @@ class Client:
         if sender == self.conn_bootstrap:
             print("Received punch request")
             to_be_punched = packet.seeders[0]
+            self.punched[to_be_punched] = False
+            self.punched_other[to_be_punched] = False
             punch_thread = threading.Thread(target=self.send_punch, args=(packet, to_be_punched))
             punch_thread.setDaemon(True)
             punch_thread.start()
