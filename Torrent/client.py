@@ -284,7 +284,7 @@ class Client:
             if torrent.hash not in self.counter:
                 self.counter[torrent.hash] = 0
             self.counter[torrent.hash] += 1
-            print("Succesfully received piece " + str(packet.piece_no) + " for torrent", torrent.id)
+            print("Succesfully received " + str(len(torrent.pieces)) + " pieces", torrent.id)
         except IndexError:
             print("Received a piece of an unknown torrent", packet.hash, packet)
 
