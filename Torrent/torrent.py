@@ -76,10 +76,14 @@ class Torrent:
         return self.file.hash_piece(piece_number, function)
 
     def close(self):
+        mutex.acquire()
         self.file.close()
+        mutex.release()
 
     def open(self):
+        mutex.acquire()
         self.file.open()
+        mutex.release()
 
 
 class TorrentFile:
