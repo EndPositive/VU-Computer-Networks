@@ -243,6 +243,9 @@ class Client:
                         packet.seeders.append(seeder)
                         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
+                        self.punched[seeder] = False
+                        self.punched_other[seeder] = False
+
                         # Punch an idle seeder
                         self.send_punch(packet, seeder)
 
