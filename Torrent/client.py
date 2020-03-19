@@ -27,8 +27,8 @@ class Client:
         self.seeders = {}
         self.punched_seeders = []
         self.requests = {}
-        self.max_requests_per_torrent = 10
-        self.max_requests_per_seeder = 10
+        self.max_requests_per_torrent = 100000
+        self.max_requests_per_seeder = 100000
 
         # Counter for how many pieces we are receiving
         self.counter = {}
