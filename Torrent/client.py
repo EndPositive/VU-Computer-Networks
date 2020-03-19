@@ -263,7 +263,7 @@ class Client:
                     # Request a download
                     packet.type = 6
                     send(self.__socket, packet.to_bytes(), seeder)
-                    print("Requesting piece " + str(packet.piece_no) + " for torrent", torrent.id)
+                    # print("Requesting piece " + str(packet.piece_no) + " for torrent", torrent.id)
                 else:
                     # Wait a bit before trying again
                     time.sleep(1)
@@ -296,7 +296,7 @@ class Client:
             if torrent.hash not in self.counter:
                 self.counter[torrent.hash] = 0
             self.counter[torrent.hash] += 1
-            print("Succesfully received " + str(len(torrent.pieces)) + " pieces", torrent.id)
+            # print("Succesfully received piece " + str(len(torrent.pieces)) + " for", torrent.id)
         except IndexError:
             print("Received a piece of an unknown torrent", packet.hash, packet)
 
