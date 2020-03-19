@@ -38,15 +38,14 @@ class Torrent:
         self.file.allocate_space(byte_cnt)
 
     def add_piece(self, piece_number, data=None):
-        if piece_number not in self.pieces:
+        if piece_number not in self.pieces and data is not None and len(data):
             self.pieces.add(piece_number)
-            if data is not None:
-                self.write_file_mutex.acquire()
-                self.file.write_piece(piece_number, data)
-                self.write_file_mutex.release()
+            self.write_file_mutex.acquire()
+            self.file.write_piece(piece_number, data)
+            self.write_file_mutex.release()
 
     def get_piece(self, piece_number):
-        return self.file.read_piece(piece_number)
+        return self.file.read_piece(piece_number) if piece_number in self.pieces else b''
 
     def get_piece_no(self):
         if len(self.pieces) >= self.get_n_pieces():
