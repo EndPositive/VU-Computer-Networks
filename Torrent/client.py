@@ -200,6 +200,10 @@ class Client:
             if len(self.seeders[torrent.hash]) == 0:
                 raise ModuleNotFoundError
 
+            spam_timeout = 1
+            curr_time = time.time()
+            piece_spam_control = [curr_time for i in range(torrent.get_n_pieces())]
+
             # Main download loop
             while True:
                 # Try to download from more seeders if limit isn't reached
@@ -208,6 +212,13 @@ class Client:
                     packet.piece_no = torrent.get_piece_no()
                     if packet.piece_no == -1:
                         break
+
+                    # if spam_timeout hasn't passed since the last time you requested this piece
+                    # then jump to the next piece, until you find an available one
+                    while time.time() - piece_spam_control[packet.piece_no] < spam_timeout:
+                        packet.piece_no = torrent.get_piece_no()
+                        time.sleep(0.1)
+                    piece_spam_control[packet.piece_no] = time.time()
 
                     # Get seeders list
                     self.request_seeders(data)
