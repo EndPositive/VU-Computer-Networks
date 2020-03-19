@@ -210,14 +210,14 @@ class Client:
                 if len(self.requests[torrent.hash]) < self.max_requests_per_torrent:
                     # Find an available piece number
                     packet.piece_no = torrent.get_piece_no()
-                    if packet.piece_no == -1:
-                        break
 
                     # if spam_timeout hasn't passed since the last time you requested this piece
                     # then jump to the next piece, until you find an available one
-                    while time.time() - piece_spam_control[packet.piece_no] < spam_timeout:
+                    while packet.piece_no != -1 and time.time() - piece_spam_control[packet.piece_no] < spam_timeout:
                         packet.piece_no = torrent.get_piece_no()
                         time.sleep(0.1)
+                    if packet.piece_no == -1:
+                        break
                     piece_spam_control[packet.piece_no] = time.time()
 
                     # Get seeders list
