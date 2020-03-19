@@ -218,6 +218,7 @@ class Client:
                         packet.piece_no = torrent.get_piece_no()
                         time.sleep(0.1)
                     if packet.piece_no == -1:
+                        print("Succesfully downloaded the torrent file")
                         break
                     piece_spam_control[packet.piece_no] = time.time()
 
