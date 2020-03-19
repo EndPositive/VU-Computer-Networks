@@ -31,7 +31,6 @@ class File:
         return self.f.read(self.piece_size)
 
     def write_piece(self, piece_number, data):
-        print('Writing', str(len(data)), 'btyes to location', piece_number * self.piece_size)
         self.f.seek(piece_number * self.piece_size)
         return self.f.write(data)
 
