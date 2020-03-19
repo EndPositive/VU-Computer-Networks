@@ -159,6 +159,7 @@ class Client:
     def remove_torrent(self, data):
         try:
             self.torrents = [t for t in self.torrents if t.id != int(data.split(" ")[1])]
+            save_torrents(self.torrents)
         except IndexError:
             print("Usage: remove torrent_id\nRemove a torrent from local cache (does not delete downloaded file).")
 
