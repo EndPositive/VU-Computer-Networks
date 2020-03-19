@@ -100,16 +100,35 @@ class TorrentFile:
             file_size = obj['file_size']
             hash_val = obj['hash']
 
-        if not overwrite and exists(file_name):
-            return None
+        t = None
+        if exists(file_name):
+            f = File(file_name)
+            # if a file with the same hash as the torrent exists, it means that we already have it downloaded
+            if f.hash_file() == hash_val:
+                t = Torrent(
+                    _path=file_name,
+                    _piece_size=piece_size,
+                    _hash=hash_val,
+                    _server=server,
+                    _file_size=file_size
+                )
+                # since we have the file, mark all pieces as already existing
+                t.pieces = {i for i in range(t.get_n_pieces())}
+                f.close()
+            elif not overwrite:
+                f.close()
+                return None
 
-        return Torrent(
-            _path=file_name,
-            _piece_size=piece_size,
-            _hash=hash_val,
-            _server=server,
-            _file_size=file_size
-        )
+        if t is None:
+            return Torrent(
+                _path=file_name,
+                _piece_size=piece_size,
+                _hash=hash_val,
+                _server=server,
+                _file_size=file_size
+            )
+
+        return t
 
     @staticmethod
     def dump(obj, path):
