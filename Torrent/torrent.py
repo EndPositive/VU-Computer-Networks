@@ -45,7 +45,9 @@ class Torrent:
             self.write_file_mutex.release()
 
     def get_piece(self, piece_number):
-        return self.file.read_piece(piece_number) if piece_number in self.pieces else b''
+        # TODO: UNCOMMENT BELOW
+        # return self.file.read_piece(piece_number) if piece_number in self.pieces else b''
+        return self.file.read_piece(piece_number)
 
     def get_piece_no(self):
         if len(self.pieces) >= self.get_n_pieces():
