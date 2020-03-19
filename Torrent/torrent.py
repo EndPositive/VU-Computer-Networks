@@ -38,9 +38,7 @@ class Torrent:
     def add_piece(self, piece_number, data=None):
         if piece_number not in self.pieces and data is not None and len(data):
             self.pieces.add(piece_number)
-            self.write_file_mutex.acquire()
             self.file.write_piece(piece_number, data)
-            self.write_file_mutex.release()
 
     def get_piece(self, piece_number):
         # TODO: REMOVE COMMENT BELOW
