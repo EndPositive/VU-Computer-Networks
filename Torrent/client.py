@@ -202,7 +202,7 @@ class Client:
 
             spam_timeout = 1
             curr_time = time.time()
-            piece_spam_control = [curr_time for i in range(torrent.get_n_pieces())]
+            piece_spam_control = [curr_time - spam_timeout for i in range(torrent.get_n_pieces())]
 
             # Main download loop
             while True:
