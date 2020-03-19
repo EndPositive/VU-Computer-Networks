@@ -4,8 +4,6 @@ from hashlib import md5
 from threading import Lock
 from os.path import basename, splitext, getsize, exists
 
-mutex = Lock()
-
 
 class Torrent:
     def __init__(self, _path, _piece_size=1000, _id=0, _hash=None, _pieces=None, _server=('80.112.140.14', 65400), _file_size=None):
@@ -38,15 +36,11 @@ class Torrent:
     def add_piece(self, piece_number, data=None):
         if piece_number not in self.pieces and data is not None and len(data):
             self.pieces.add(piece_number)
-            mutex.acquire()
             self.file.write_piece(piece_number, data)
-            mutex.release()
 
     def get_piece(self, piece_number):
         if piece_number in self.pieces:
-            mutex.acquire()
             x = self.file.read_piece(piece_number)
-            mutex.release()
             return x
         return b''
 
@@ -81,26 +75,26 @@ class Torrent:
         return self.file.hash_piece(piece_number, function)
 
     def close(self):
-        mutex.acquire()
         self.file.close()
-        mutex.release()
 
     def open(self):
-        mutex.acquire()
         self.file.open()
-        mutex.release()
-
 
 class TorrentFile:
     @staticmethod
-    def load(path, overwrite=False):
-        with open(path, 'rb') as fp:
-            obj = pickle.load(fp)
-            file_name = obj['file_name']
-            server = obj['server']
-            piece_size = obj['piece_size']
-            file_size = obj['file_size']
-            hash_val = obj['hash']
+    def load(path=None, obj=None, overwrite=False):
+        if path is None and obj is None:
+            return
+
+        if path is not None:
+            with open(path, 'rb') as fp:
+                obj = pickle.load(fp)
+
+        file_name = obj['file_name']
+        server = obj['server']
+        piece_size = obj['piece_size']
+        file_size = obj['file_size']
+        hash_val = obj['hash']
 
         t = None
         if exists(file_name):
@@ -133,7 +127,7 @@ class TorrentFile:
         return t
 
     @staticmethod
-    def dump(obj, path):
+    def dump(obj, path=None):
         obj = {
             'file_name': basename(obj.file.path),
             'server': obj.server,
@@ -141,6 +135,9 @@ class TorrentFile:
             'file_size': obj.file_size,
             'hash': obj.hash
         }
+
+        if path is None:
+            return obj
 
         path = splitext(path)[0] + ".torr"
 
@@ -151,12 +148,11 @@ class TorrentFile:
 
 
 def save_torrents(torrent_list, file_name='config'):
+    to_dump = []
     for t in torrent_list:
-        t.close()
+        to_dump.append(TorrentFile.dump(t))
     with open(file_name, 'wb') as f:
-        pickle.dump(torrent_list, f)
-    for t in torrent_list:
-        t.open()
+        pickle.dump(to_dump, f)
 
 
 def load_torrents(file_name='config'):
@@ -164,9 +160,9 @@ def load_torrents(file_name='config'):
         with open(file_name, 'rb') as f:
             torrents = pickle.load(f)
 
+        loaded = []
         for t in torrents:
-            t.open()
-
+            loaded.append(TorrentFile.load(obj=t, overwrite=True))
         return torrents
     except FileNotFoundError:
         return []
