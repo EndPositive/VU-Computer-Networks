@@ -98,7 +98,7 @@ class Client:
 
     def __pull(self):
         while True:
-            res, conn = receive(self.__socket, 4096)
+            res, conn = receive(self.__socket, 65500)
             if not res:
                 print("Something bad happend: ", res)
                 return
@@ -262,6 +262,7 @@ class Client:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             packet.type = 7
             packet.data = torrent.get_piece(packet.piece_no)
+            print(packet.data)
             send(self.__socket, packet.to_bytes(), conn)
             print("Sending piece " + str(packet.piece_no) + " for torrent", torrent.id)
         except IndexError:
