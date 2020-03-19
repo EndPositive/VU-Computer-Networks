@@ -59,6 +59,9 @@ class Client:
         speed_thread = threading.Thread(target=self.__speed)
         speed_thread.setDaemon(True)
         speed_thread.start()
+        save_thread = threading.Thread(target=self.__save)
+        save_thread.setDaemon(True)
+        save_thread.start()
         while True:
             pass
 
@@ -93,7 +96,6 @@ class Client:
 
             else:
                 print("Unknown command")
-            # save_torrents(self.torrents)
             time.sleep(0.2)
 
     def __pull(self):
@@ -119,7 +121,6 @@ class Client:
             # PUNCHING
             elif packet.type == 8 or packet.type == 9:
                 self.receive_punch(packet, conn)
-            # save_torrents(self.torrents)
 
     def load_torrent(self, data):
         try:
@@ -364,6 +365,10 @@ class Client:
             # Ping every 15 seconds. NAT's remove entries after
             # about 60sec but it varies....
             time.sleep(15)
+
+    def __save(self):
+        save_torrents(self.torrents)
+        time.sleep(15)
 
     def receive_ping(self, packet, conn):
         if conn == self.conn_bootstrap:
