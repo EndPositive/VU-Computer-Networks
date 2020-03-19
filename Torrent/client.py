@@ -382,7 +382,7 @@ class Client:
                 send(self.__socket, packet.to_bytes(), conn)
 
             # Also remove old requests from the list
-            for hash in self.torrents:
+            for hash in self.requests:
                 self.requests[hash] = self.requests[hash][len(self.requests[hash]) // 3:]
 
             # Ping every 15 seconds. NAT's remove entries after
