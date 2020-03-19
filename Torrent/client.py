@@ -287,7 +287,6 @@ class Client:
 
     def receive_piece(self, packet, conn):
         try:
-            print()
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             torrent.add_piece(packet.piece_no, data=packet.data)
 
