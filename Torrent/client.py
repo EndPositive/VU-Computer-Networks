@@ -222,6 +222,8 @@ class Client:
                             num = self.requests[torrent.hash].count(conn)
                             requests[conn] = num
 
+                        print(requests)
+
                         if len(requests):
                             seeder = min(requests, key=requests.get)
                         else:
