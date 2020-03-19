@@ -204,6 +204,7 @@ class Client:
             curr_time = time.time()
             piece_spam_control = [curr_time - spam_timeout for i in range(torrent.get_n_pieces())]
 
+            download_start_time = time.time()
             # Main download loop
             while True:
                 # Try to download from more seeders if limit isn't reached
@@ -267,6 +268,8 @@ class Client:
                 else:
                     # Wait a bit before trying again
                     time.sleep(1)
+            download_total_time = time.time() - download_start_time
+            print('AVG DOWNLOAD SPEED: ', torrent.file_size / download_total_time / 1000, 'KB/S')
         except IndexError:
             print("Usage: download torrent_id\nGet list of seeders of a torrent.")
         except ModuleNotFoundError:
