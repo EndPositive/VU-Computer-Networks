@@ -380,8 +380,9 @@ class Client:
             time.sleep(15)
 
     def __save(self):
-        save_torrents(self.torrents)
-        time.sleep(15)
+        while True:
+            save_torrents(self.torrents)
+            time.sleep(15)
 
     def receive_ping(self, packet, conn):
         if conn == self.conn_bootstrap:
