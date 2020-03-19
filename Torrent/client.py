@@ -262,7 +262,6 @@ class Client:
             torrent = [t for t in self.torrents if t.hash == packet.hash][0]
             packet.type = 7
             packet.data = torrent.get_piece(packet.piece_no)
-            print(packet.data)
             send(self.__socket, packet.to_bytes(), conn)
             print("Sending piece " + str(packet.piece_no) + " for torrent", torrent.id)
         except IndexError:
