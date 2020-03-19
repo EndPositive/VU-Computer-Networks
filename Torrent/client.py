@@ -263,6 +263,7 @@ class Client:
                     # Request a download
                     packet.type = 6
                     send(self.__socket, packet.to_bytes(), seeder)
+                    print("Requesting piece " + str(packet.piece_no) + " for torrent", torrent.id)
                 else:
                     # Wait a bit before trying again
                     time.sleep(1)
