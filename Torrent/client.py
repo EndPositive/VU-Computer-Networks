@@ -247,6 +247,7 @@ class Client:
                     if seeder not in self.punched_seeders:
                         # Tell the bootstrap you want to start punching someone
                         packet.type = 8
+                        packet.seeders = []
                         packet.seeders.append(seeder)
                         print("Request at bootstrap", seeder)
                         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
