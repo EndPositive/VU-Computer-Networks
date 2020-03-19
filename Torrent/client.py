@@ -27,8 +27,8 @@ class Client:
         self.seeders = {}
         self.punched_seeders = []
         self.requests = {}
-        self.max_requests_per_torrent = 100000
-        self.max_requests_per_seeder = 100000
+        self.max_requests_per_torrent = 25
+        self.max_requests_per_seeder = 25
 
         # Counter for how many pieces we are receiving
         self.counter = {}
@@ -380,6 +380,11 @@ class Client:
                 if conn in self.punched_seeders:
                     self.punched_seeders.remove(conn)
                 send(self.__socket, packet.to_bytes(), conn)
+
+            # Also remove old requests from the list
+            for hash in self.torrents:
+                self.requests[hash] = self.requests[hash][len(self.requests[hash]) // 3:]
+
             # Ping every 15 seconds. NAT's remove entries after
             # about 60sec but it varies....
             time.sleep(15)
