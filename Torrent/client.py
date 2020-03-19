@@ -281,7 +281,7 @@ class Client:
             packet.type = 7
             packet.data = torrent.get_piece(packet.piece_no)
             send(self.__socket, packet.to_bytes(), conn)
-            print("Sending piece " + str(packet.piece_no) + " for torrent", torrent.id)
+            # print("Sending piece " + str(packet.piece_no) + " for torrent", torrent.id)
         except IndexError:
             print("Received a request for an unknown torrent", packet.hash, packet)
 
@@ -324,7 +324,7 @@ class Client:
         # Only respond to pull if it is a request (comes from bootstrap)
         if sender == self.conn_bootstrap:
             to_be_punched = packet.seeders[0]
-            print("Received punch request for", to_be_punched)
+            # print("Received punch request for", to_be_punched)
             punch_thread = threading.Thread(target=self.send_punch, args=(packet, to_be_punched))
             punch_thread.setDaemon(True)
             punch_thread.start()
@@ -333,15 +333,15 @@ class Client:
         # Its am actual punch and we have not been punched yet
         if not self.punched[sender]:
             self.punched[sender] = True
-            print("Punched by", sender)
+            # print("Punched by", sender)
 
         # If the packet is of type 9, the other client has been punched
         if packet.type == 9:
             self.punched_other[sender] = True
-            print("Punched", sender)
+            # print("Punched", sender)
 
     def send_punch(self, packet, conn):
-        print("Started sending punches")
+        # print("Started sending punches")
         self.punched[conn] = False
         self.punched_other[conn] = False
         # We have not been punched yet
