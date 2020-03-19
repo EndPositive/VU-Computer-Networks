@@ -215,34 +215,25 @@ class Client:
                     # Find users which are not being requested yet
                     idle_seeders = [s for s in self.seeders[torrent.hash] if s not in self.requests[torrent.hash]]
 
-                    print(idle_seeders, self.requests[torrent.hash])
-
                     # If there are no idle seeders, find a seeder who is not very busy
                     if len(idle_seeders) == 0:
-                        print("No idle seeders")
                         # Find fewest used active seeder
                         requests = {}
                         for conn in self.requests[torrent.hash]:
                             num = self.requests[torrent.hash].count(conn)
                             requests[conn] = num
 
-                        print(requests)
-
                         if len(requests):
-                            print("Requests available")
                             seeder = min(requests, key=requests.get)
                         else:
-                            print("Requests unavailable")
                             time.sleep(0.5)
                             continue
 
                         # If the fewest used active seeder is already used a lot
                         if requests[seeder] > self.max_requests_per_seeder:
-                            print("Seeder already used to max")
                             time.sleep(1)
                             continue
                     else:
-                        print("Idle seeder found ", idle_seeders[0])
                         seeder = idle_seeders[0]
 
                     if seeder not in self.punched_seeders:
@@ -250,7 +241,6 @@ class Client:
                         packet.type = 8
                         packet.seeders = []
                         packet.seeders.append(seeder)
-                        print("Request at bootstrap", seeder)
                         send(self.__socket, packet.to_bytes(), self.conn_bootstrap)
 
                         # Punch an idle seeder
@@ -320,7 +310,7 @@ class Client:
         # Only respond to pull if it is a request (comes from bootstrap)
         if sender == self.conn_bootstrap:
             to_be_punched = packet.seeders[0]
-            print("Received punch request for",to_be_punched)
+            print("Received punch request for", to_be_punched)
             punch_thread = threading.Thread(target=self.send_punch, args=(packet, to_be_punched))
             punch_thread.setDaemon(True)
             punch_thread.start()
@@ -342,17 +332,14 @@ class Client:
         self.punched_other[conn] = False
         # We have not been punched yet
         while True and not self.punched[conn]:
-            print("I have not been punched yet")
             send(self.__socket, packet.to_bytes(), conn)
             time.sleep(.5)
         # We have been punched, but the other one not yet
         while True and not self.punched_other[conn]:
-            print("The other has not been punched yet")
             packet.type = 9
             send(self.__socket, packet.to_bytes(), conn)
             time.sleep(.5)
         # Final punch
-        print("Final punch")
         packet.type = 9
         send(self.__socket, packet.to_bytes(), conn)
         self.punched_seeders.append(conn)
