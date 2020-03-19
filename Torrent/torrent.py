@@ -163,6 +163,6 @@ def load_torrents(file_name='config'):
         loaded = []
         for t in torrents:
             loaded.append(TorrentFile.load(obj=t, overwrite=True))
-        return torrents
+        return loaded
     except FileNotFoundError:
         return []
