@@ -31,8 +31,6 @@ class Torrent:
 
         self.__curr_piece = 0
 
-        self.write_file_mutex = Lock()
-
     def allocate_space(self, byte_cnt):
         self.file_size = byte_cnt
         self.file.allocate_space(byte_cnt)
@@ -45,7 +43,7 @@ class Torrent:
             self.write_file_mutex.release()
 
     def get_piece(self, piece_number):
-        # TODO: UNCOMMENT BELOW
+        # TODO: REMOVE COMMENT BELOW
         # return self.file.read_piece(piece_number) if piece_number in self.pieces else b''
         return self.file.read_piece(piece_number)
 
@@ -80,12 +78,9 @@ class Torrent:
         return self.file.hash_piece(piece_number, function)
 
     def close(self):
-        self.write_file_mutex.acquire()
-        self.write_file_mutex = None
         self.file.close()
 
     def open(self):
-        self.write_file_mutex = Lock()
         self.file.open()
 
 
