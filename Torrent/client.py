@@ -408,7 +408,7 @@ class Client:
                     self.recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn]
                     self.recv_counter[hash_val][conn] = 0
                     self.total_recv_speed += self.recv_speed[hash_val][conn]
-                    self.torrent_recv_speed[hash_val] += self.send_counter[hash_val][conn]
+                    self.torrent_recv_speed[hash_val] += self.recv_counter[hash_val][conn]
             if self.total_recv_speed > 0:
                 print("Downloaded " + str(self.total_recv_speed) + " pieces in last second")
 
