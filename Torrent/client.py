@@ -255,8 +255,8 @@ class Client:
                         self.max_requests_per_seeder[seeder] = 1
 
                     # If the fewest used active seeder is already used a lot
+                    print(requests[seeder], self.max_requests_per_seeder[seeder])
                     if requests[seeder] > self.max_requests_per_seeder[seeder]:
-                        time.sleep(1)
                         continue
                 else:
                     seeder = idle_seeders[0]
@@ -394,8 +394,7 @@ class Client:
                 for conn in self.send_counter[hash_val]:
                     if conn not in self.send_speed[hash_val]:
                         self.send_speed[hash_val][conn] = 1
-                    self.send_speed[hash_val][conn] += self.send_counter[hash_val][conn]
-                    self.send_speed[hash_val][conn] /= 2
+                    self.send_speed[hash_val][conn] = self.send_counter[hash_val][conn] * 0.25 + self.send_speed[hash_val][conn] * 0.75
                     self.send_counter[hash_val][conn] = 0
                     self.total_send_speed += self.send_counter[hash_val][conn]
                     self.torrent_send_speed[hash_val] += self.send_counter[hash_val][conn]
@@ -410,8 +409,7 @@ class Client:
                 for conn in self.recv_counter[hash_val]:
                     if conn not in self.recv_speed[hash_val]:
                         self.recv_speed[hash_val][conn] = 1
-                    self.recv_speed[hash_val][conn] += self.recv_counter[hash_val][conn]
-                    self.recv_speed[hash_val][conn] /= 2
+                    self.recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn] * 0.25 + self.recv_speed[hash_val][conn] * 0.75
                     self.recv_counter[hash_val][conn] = 0
                     self.total_recv_speed += self.recv_speed[hash_val][conn]
                     self.torrent_recv_speed[hash_val] += self.recv_counter[hash_val][conn]
@@ -427,9 +425,9 @@ class Client:
                         # self.max_requests_per_seeder[conn] -= 1
                         continue
 
-                    print(self.send_speed[hash_val][conn], self.recv_speed[hash_val][conn])
+                    print('s', self.send_speed[hash_val][conn], self.recv_speed[hash_val][conn])
                     if self.send_speed[hash_val][conn] > self.recv_speed[hash_val][conn]:
-                        self.max_requests_per_seeder[conn] = self.recv_speed[hash_val][conn] * 0.9
+                        self.max_requests_per_seeder[conn] = self.max_requests_per_seeder[conn] * 0.8
                     else:
                         self.max_requests_per_seeder[conn] += 1
 
