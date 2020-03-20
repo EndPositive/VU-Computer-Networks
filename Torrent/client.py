@@ -224,9 +224,9 @@ class Client:
 
                 # if spam_timeout hasn't passed since the last time you requested this piece
                 # then jump to the next piece, until you find an available one
-                while packet.piece_no != -1 and time.time() - piece_spam_control[packet.piece_no] < spam_timeout:
-                    packet.piece_no = torrent.get_piece_no()
-                    time.sleep(0.1)
+                # while packet.piece_no != -1 and time.time() - piece_spam_control[packet.piece_no] < spam_timeout:
+                #     packet.piece_no = torrent.get_piece_no()
+                #     time.sleep(0.1)
                 if packet.piece_no == -1:
                     print("Succesfully downloaded the torrent file")
                     break
@@ -253,12 +253,11 @@ class Client:
                         continue
 
                     if seeder not in self.max_requests_per_seeder:
-                        self.max_requests_per_seeder[seeder] = 1
+                        self.max_requests_per_seeder[seeder] = 100
 
                     # If the fewest used active seeder is already used a lot
-                    print(requests[seeder], self.max_requests_per_seeder[seeder])
-                    if requests[seeder] > self.max_requests_per_seeder[seeder]:
-                        continue
+                    while self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder[seeder]:
+                        pass
                 else:
                     seeder = idle_seeders[0]
 
@@ -412,7 +411,7 @@ class Client:
                     if conn not in self.recv_speed[hash_val]:
                         self.recv_speed[hash_val][conn] = 1
                     if conn not in self.avg_recv_speed[hash_val]:
-                        self.recv_speed[hash_val][conn] = 1
+                        self.avg_recv_speed[hash_val][conn] = 1
                     self.avg_recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn] * 0.25 + self.avg_recv_speed[hash_val][conn] * 0.75
                     self.recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn]
                     self.recv_counter[hash_val][conn] = 0
@@ -430,9 +429,10 @@ class Client:
                         # self.max_requests_per_seeder[conn] -= 1
                         continue
 
-                    print('s', self.send_speed[hash_val][conn], self.recv_speed[hash_val][conn], self.avg_recv_speed[hash_val][conn])
+                    print('s', self.send_speed[hash_val][conn], self.recv_speed[hash_val][conn], self.avg_recv_speed[hash_val][conn], self.max_requests_per_seeder[conn])
                     if self.send_speed[hash_val][conn] > self.recv_speed[hash_val][conn]:
-                        self.max_requests_per_seeder[conn] = self.max_requests_per_seeder[conn] * 0.8
+                        self.max_requests_per_seeder[conn] -= 1
+                        # self.max_requests_per_seeder[conn] = self.max_requests_per_seeder[conn] * 0.8
                     else:
                         self.max_requests_per_seeder[conn] += 1
 
