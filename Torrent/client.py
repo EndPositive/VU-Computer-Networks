@@ -421,9 +421,9 @@ class Client:
                         # self.max_requests_per_seeder[conn] -= 1
                         continue
 
-                    print(self.send_counter[hash_val][conn], self.recv_counter[hash_val][conn])
-                    if self.send_counter[hash_val][conn] > self.recv_counter[hash_val][conn]:
-                        self.max_requests_per_seeder[conn] = self.recv_counter[hash_val][conn] * 0.9
+                    print(self.send_speed[hash_val][conn], self.recv_speed[hash_val][conn])
+                    if self.send_speed[hash_val][conn] > self.recv_speed[hash_val][conn]:
+                        self.max_requests_per_seeder[conn] = self.recv_speed[hash_val][conn] * 0.9
                     else:
                         self.max_requests_per_seeder[conn] += 1
 
