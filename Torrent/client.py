@@ -27,19 +27,13 @@ class Client:
         self.seeders = {}
         self.punched_seeders = []
         self.requests = {}
-        self.max_requests_per_torrent = {}
-        self.max_requests_per_seeder = {}
+        self.max_requests_per_torrent = 100
+        self.max_requests_per_seeder = 100
 
         # Counter for how many pieces we are receiving
-        self.recv_counter = {}
-        self.send_counter = {}
-        self.recv_speed = {}
-        self.send_speed = {}
-        self.avg_recv_speed = {}
-        self.total_recv_speed = 0
-        self.total_send_speed = 0
-        self.torrent_send_speed = {}
-        self.torrent_recv_speed = {}
+        self.counter = {}
+        self.speed = {}
+        self.total_speed = 0
 
     def start(self):
         if system() == "Windows":
@@ -214,9 +208,7 @@ class Client:
             # Main download loop
             while True:
                 # Try to download from more seeders if limit isn't reached
-                if torrent.hash not in self.max_requests_per_torrent:
-                    self.max_requests_per_torrent[torrent.hash] = 30
-                if len(self.requests[torrent.hash]) < self.max_requests_per_torrent[torrent.hash]:
+                if len(self.requests[torrent.hash]) < self.max_requests_per_torrent:
                     # Find an available piece number
                     packet.piece_no = torrent.get_piece_no()
 
@@ -224,6 +216,7 @@ class Client:
                     # then jump to the next piece, until you find an available one
                     while packet.piece_no != -1 and time.time() - piece_spam_control[packet.piece_no] < spam_timeout:
                         packet.piece_no = torrent.get_piece_no()
+                        time.sleep(0.01)
                     if packet.piece_no == -1:
                         print("Succesfully downloaded the torrent file")
                         break
@@ -249,11 +242,8 @@ class Client:
                             time.sleep(0.5)
                             continue
 
-                        if seeder not in self.max_requests_per_seeder:
-                            self.max_requests_per_seeder[seeder] = 100
-
                         # If the fewest used active seeder is already used a lot
-                        if self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder[seeder]:
+                        if self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder:
                             continue
                     else:
                         seeder = idle_seeders[0]
@@ -271,15 +261,6 @@ class Client:
                     # Mark the seeders as active
                     self.requests[torrent.hash].append(seeder)
 
-                    # Count how many pieces we send
-                    if torrent.hash not in self.send_counter:
-                        self.send_counter[torrent.hash] = {}
-
-                    if seeder not in self.send_counter[torrent.hash]:
-                        self.send_counter[torrent.hash][seeder] = 0
-
-                    self.send_counter[torrent.hash][seeder] += 1
-
                     # Request a download
                     packet.type = 6
                     send(self.__socket, packet.to_bytes(), seeder)
@@ -288,6 +269,7 @@ class Client:
                     time.sleep(0.1)
             download_total_time = time.time() - download_start_time
             print('AVG DOWNLOAD SPEED: ', torrent.file_size / download_total_time / 1000, 'KB/S')
+            print('DOWNLOADED ', torrent.get_n_pieces(), 'PIECES')
         except (IndexError, ValueError):
             print("Usage: download torrent_id\nGet list of seeders of a torrent.")
         except ModuleNotFoundError:
@@ -313,14 +295,9 @@ class Client:
                 self.requests[torrent.hash].remove(conn)
 
             # Count how many pieces we receive
-            if torrent.hash not in self.recv_counter:
-                self.recv_counter[torrent.hash] = {}
-
-            if conn not in self.recv_counter[torrent.hash]:
-                self.recv_counter[torrent.hash][conn] = 0
-            self.recv_counter[torrent.hash][conn] += 1
-
-            # print("Succesfully received piece " + str(len(torrent.pieces)) + " for", torrent.id)
+            if torrent.hash not in self.counter:
+                self.counter[torrent.hash] = 0
+            self.counter[torrent.hash] += 1
         except IndexError:
             print("Received a piece of an unknown torrent", packet.hash, packet)
 
@@ -363,7 +340,7 @@ class Client:
             # print("Punched", sender)
 
     def send_punch(self, packet, conn):
-        # print("Started sending punches")
+        print("Connecting with", conn)
         self.punched[conn] = False
         self.punched_other[conn] = False
         # We have not been punched yet
@@ -379,57 +356,16 @@ class Client:
         packet.type = 9
         send(self.__socket, packet.to_bytes(), conn)
         self.punched_seeders.append(conn)
+        print("Connected with", conn)
 
     def __speed(self):
         while True:
-            self.total_send_speed = 0
-            for hash_val in self.send_counter:
-                self.send_speed[hash_val] = {}
-                self.torrent_send_speed[hash_val] = 0
-                for conn in self.send_counter[hash_val]:
-                    if conn not in self.send_speed[hash_val]:
-                        self.send_speed[hash_val][conn] = 1
-                    self.send_speed[hash_val][conn] = self.send_counter[hash_val][conn]
-                    self.send_counter[hash_val][conn] = 0
-                    self.total_send_speed += self.send_counter[hash_val][conn]
-                    self.torrent_send_speed[hash_val] += self.send_counter[hash_val][conn]
-
-            if self.total_send_speed > 0:
-                print("Requested " + str(self.total_send_speed) + " pieces in last second")
-
-            self.total_recv_speed = 0
-            for hash_val in self.recv_counter:
-                self.recv_speed[hash_val] = {}
-                self.avg_recv_speed[hash_val] = {}
-                self.torrent_recv_speed[hash_val] = 0
-                for conn in self.recv_counter[hash_val]:
-                    if conn not in self.recv_speed[hash_val]:
-                        self.recv_speed[hash_val][conn] = 1
-                    if conn not in self.avg_recv_speed[hash_val]:
-                        self.avg_recv_speed[hash_val][conn] = 1
-                    self.avg_recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn] * 0.25 + self.avg_recv_speed[hash_val][conn] * 0.75
-                    self.recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn]
-                    self.recv_counter[hash_val][conn] = 0
-                    self.total_recv_speed += self.recv_speed[hash_val][conn]
-                    self.torrent_recv_speed[hash_val] += self.recv_counter[hash_val][conn]
-            if self.total_recv_speed > 0:
-                print("Downloaded " + str(self.total_recv_speed) + " pieces in last second")
-
-            for hash_val in self.send_counter:
-                if hash_val not in self.recv_counter:
-                    # self.max_requests_per_torrent -= 1
-                    continue
-                for conn in self.send_counter[hash_val]:
-                    if conn not in self.recv_counter[hash_val]:
-                        # self.max_requests_per_seeder[conn] -= 1
-                        continue
-
-                    if self.send_speed[hash_val][conn] > self.recv_speed[hash_val][conn]:
-                        self.max_requests_per_seeder[conn] -= 1
-                        # self.max_requests_per_seeder[conn] = self.max_requests_per_seeder[conn] * 0.8
-                    else:
-                        self.max_requests_per_seeder[conn] += 1
-
+            total_speed = 0
+            for hash in self.counter:
+                self.speed[hash] = self.counter[hash]
+                self.counter[hash] = 0
+                total_speed += self.speed[hash]
+            self.total_speed = total_speed
             time.sleep(1)
 
     def __ping(self):
