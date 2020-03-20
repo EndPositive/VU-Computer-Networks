@@ -372,6 +372,9 @@ class Client:
             # about 60sec but it varies....
             time.sleep(15)
 
+            for hash in self.requests:
+                self.requests[hash] = self.requests[hash][len(self.requests[hash]) // 3:]
+
     def __save(self):
         while True:
             save_torrents(self.torrents)
