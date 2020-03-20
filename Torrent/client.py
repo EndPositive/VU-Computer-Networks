@@ -251,6 +251,9 @@ class Client:
                         time.sleep(0.5)
                         continue
 
+                    if seeder not in self.max_requests_per_seeder:
+                        self.max_requests_per_seeder[seeder] = 1
+
                     # If the fewest used active seeder is already used a lot
                     if requests[seeder] > self.max_requests_per_seeder[seeder]:
                         time.sleep(1)
@@ -316,7 +319,7 @@ class Client:
 
             # Count how many pieces we receive
             if torrent.hash not in self.recv_counter:
-                self.recv_counter[torrent.hash] = 0
+                self.recv_counter[torrent.hash] = {}
 
             if conn not in self.recv_counter[torrent.hash]:
                 self.recv_counter[torrent.hash][conn] = 0
