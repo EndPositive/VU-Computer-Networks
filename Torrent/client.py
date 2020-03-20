@@ -388,41 +388,41 @@ class Client:
     def __speed(self):
         while True:
             self.total_send_speed = 0
-            for hash in self.send_counter:
-                self.send_speed[hash] = {}
-                self.torrent_send_speed[hash] = {}
-                for conn in self.send_counter[hash]:
-                    self.send_speed[hash][conn] = self.send_counter[hash][conn]
-                    self.send_counter[hash][conn] = 0
-                    self.total_send_speed += self.send_counter[hash][conn]
-                    self.torrent_send_speed[hash] += self.send_counter[hash][conn]
+            for hash_val in self.send_counter:
+                self.send_speed[hash_val] = {}
+                self.torrent_send_speed[hash_val] = 0
+                for conn in self.send_counter[hash_val]:
+                    self.send_speed[hash_val][conn] = self.send_counter[hash_val][conn]
+                    self.send_counter[hash_val][conn] = 0
+                    self.total_send_speed += self.send_counter[hash_val][conn]
+                    self.torrent_send_speed[hash_val] += self.send_counter[hash_val][conn]
 
             if self.total_send_speed > 0:
                 print("Requested " + str(self.total_send_speed) + " pieces in last second")
 
             self.total_recv_speed = 0
-            for hash in self.recv_counter:
-                self.recv_speed[hash] = {}
-                self.torrent_recv_speed[hash] = {}
-                for conn in self.recv_counter[hash]:
-                    self.recv_speed[hash][conn] = self.recv_counter[hash][conn]
-                    self.recv_counter[hash][conn] = 0
-                    self.total_recv_speed += self.recv_speed[hash][conn]
-                    self.torrent_recv_speed[hash] += self.send_counter[hash][conn]
+            for hash_val in self.recv_counter:
+                self.recv_speed[hash_val] = {}
+                self.torrent_recv_speed[hash_val] = 0
+                for conn in self.recv_counter[hash_val]:
+                    self.recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn]
+                    self.recv_counter[hash_val][conn] = 0
+                    self.total_recv_speed += self.recv_speed[hash_val][conn]
+                    self.torrent_recv_speed[hash_val] += self.send_counter[hash_val][conn]
             if self.total_recv_speed > 0:
                 print("Downloaded " + str(self.total_recv_speed) + " pieces in last second")
 
-            for hash in self.send_counter:
-                if hash not in self.recv_counter:
+            for hash_val in self.send_counter:
+                if hash_val not in self.recv_counter:
                     # self.max_requests_per_torrent -= 1
                     continue
-                for conn in self.send_counter[hash]:
-                    if conn not in self.recv_counter[hash]:
+                for conn in self.send_counter[hash_val]:
+                    if conn not in self.recv_counter[hash_val]:
                         # self.max_requests_per_seeder[conn] -= 1
                         continue
 
-                    if self.send_counter[hash][conn] > self.recv_counter[hash][conn]:
-                        self.max_requests_per_seeder[conn] = self.recv_counter[hash][conn] * 0.9
+                    if self.send_counter[hash_val][conn] > self.recv_counter[hash_val][conn]:
+                        self.max_requests_per_seeder[conn] = self.recv_counter[hash_val][conn] * 0.9
                     else:
                         self.max_requests_per_seeder[conn] += 1
 
