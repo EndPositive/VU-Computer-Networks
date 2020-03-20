@@ -233,8 +233,10 @@ class Client:
                         seeder = self.seeders[torrent.hash][randint(0, len(self.seeders[torrent.hash]) - 1)]
 
                         # If the fewest used active seeder is already used a lot
-                        if self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder:
-                            continue
+                        if torrent.hash in self.requests:
+                            if seeder in self.requests[torrent.hash]:
+                                if self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder:
+                                    continue
                     else:
                         seeder = idle_seeders[0]
 
@@ -261,7 +263,7 @@ class Client:
             print('AVG DOWNLOAD SPEED: ', torrent.file_size / download_total_time / 1000, 'KB/S')
             print('DOWNLOADED ', torrent.get_n_pieces(), 'PIECES')
         except (IndexError, ValueError):
-            print("Usage: download torrent_id\nGet list of seeders of a torrent.")
+            print("Usage: download torrent_id\nDownload a torrent.")
         except ModuleNotFoundError:
             print("No seeders where found at this time, please try again later.")
 
