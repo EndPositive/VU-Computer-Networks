@@ -142,10 +142,6 @@ class Client:
 
             if torrent.hash not in [t.hash for t in self.torrents]:
                 self.torrents.append(torrent)
-
-                # # Initialize max per torrent
-                # if torrent.hash not in self.max_requests_per_torrent:
-                #     self.max_requests_per_torrent[torrent.hash] = 1
             else:
                 print("Torrent is already added")
         except IndexError:
@@ -254,7 +250,7 @@ class Client:
                             continue
 
                         if seeder not in self.max_requests_per_seeder:
-                            self.max_requests_per_seeder[seeder] = 20
+                            self.max_requests_per_seeder[seeder] = 100
 
                         # If the fewest used active seeder is already used a lot
                         if self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder[seeder]:
