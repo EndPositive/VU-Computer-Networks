@@ -35,6 +35,7 @@ class Client:
         self.send_counter = {}
         self.recv_speed = {}
         self.send_speed = {}
+        self.avg_recv_speed = {}
         self.total_recv_speed = 0
         self.total_send_speed = 0
         self.torrent_send_speed = {}
@@ -394,7 +395,7 @@ class Client:
                 for conn in self.send_counter[hash_val]:
                     if conn not in self.send_speed[hash_val]:
                         self.send_speed[hash_val][conn] = 1
-                    self.send_speed[hash_val][conn] = self.send_counter[hash_val][conn] * 0.25 + self.send_speed[hash_val][conn] * 0.75
+                    self.send_speed[hash_val][conn] = self.send_counter[hash_val][conn]
                     self.send_counter[hash_val][conn] = 0
                     self.total_send_speed += self.send_counter[hash_val][conn]
                     self.torrent_send_speed[hash_val] += self.send_counter[hash_val][conn]
@@ -405,11 +406,15 @@ class Client:
             self.total_recv_speed = 0
             for hash_val in self.recv_counter:
                 self.recv_speed[hash_val] = {}
+                self.avg_recv_speed[hash_val] = {}
                 self.torrent_recv_speed[hash_val] = 0
                 for conn in self.recv_counter[hash_val]:
                     if conn not in self.recv_speed[hash_val]:
                         self.recv_speed[hash_val][conn] = 1
-                    self.recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn] * 0.25 + self.recv_speed[hash_val][conn] * 0.75
+                    if conn not in self.avg_recv_speed[hash_val]:
+                        self.recv_speed[hash_val][conn] = 1
+                    self.avg_recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn] * 0.25 + self.avg_recv_speed[hash_val][conn] * 0.75
+                    self.recv_speed[hash_val][conn] = self.recv_counter[hash_val][conn]
                     self.recv_counter[hash_val][conn] = 0
                     self.total_recv_speed += self.recv_speed[hash_val][conn]
                     self.torrent_recv_speed[hash_val] += self.recv_counter[hash_val][conn]
@@ -425,7 +430,7 @@ class Client:
                         # self.max_requests_per_seeder[conn] -= 1
                         continue
 
-                    print('s', self.send_speed[hash_val][conn], self.recv_speed[hash_val][conn])
+                    print('s', self.send_speed[hash_val][conn], self.recv_speed[hash_val][conn], self.avg_recv_speed[hash_val][conn])
                     if self.send_speed[hash_val][conn] > self.recv_speed[hash_val][conn]:
                         self.max_requests_per_seeder[conn] = self.max_requests_per_seeder[conn] * 0.8
                     else:
