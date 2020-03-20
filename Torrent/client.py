@@ -283,7 +283,7 @@ class Client:
                 #     time.sleep(1)
             download_total_time = time.time() - download_start_time
             print('AVG DOWNLOAD SPEED: ', torrent.file_size / download_total_time / 1000, 'KB/S')
-        except IndexError:
+        except (IndexError, ValueError):
             print("Usage: download torrent_id\nGet list of seeders of a torrent.")
         except ModuleNotFoundError:
             print("No seeders where found at this time, please try again later.")
