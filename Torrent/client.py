@@ -230,17 +230,7 @@ class Client:
 
                     # If there are no idle seeders, find a seeder who is not very busy
                     if len(idle_seeders) == 0:
-                        # Find fewest used active seeder
-                        requests = {}
-                        for conn in self.requests[torrent.hash]:
-                            num = self.requests[torrent.hash].count(conn)
-                            requests[conn] = num
-
-                        if len(requests):
-                            seeder = min(requests, key=requests.get)
-                        else:
-                            time.sleep(0.5)
-                            continue
+                        seeder = idle_seeders[randint(0, len(idle_seeders))]
 
                         # If the fewest used active seeder is already used a lot
                         if self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder:
@@ -377,10 +367,6 @@ class Client:
                 if conn in self.punched_seeders:
                     self.punched_seeders.remove(conn)
                 send(self.__socket, packet.to_bytes(), conn)
-
-            # Also remove old requests from the list
-            for hash in self.requests:
-                self.requests[hash] = self.requests[hash][len(self.requests[hash]) // 3:]
 
             # Ping every 15 seconds. NAT's remove entries after
             # about 60sec but it varies....
