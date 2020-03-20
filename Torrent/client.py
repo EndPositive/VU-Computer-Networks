@@ -257,8 +257,8 @@ class Client:
                             self.max_requests_per_seeder[seeder] = 20
 
                         # If the fewest used active seeder is already used a lot
-                        while self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder[seeder]:
-                            pass
+                        if self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder[seeder]:
+                            continue
                     else:
                         seeder = idle_seeders[0]
 
