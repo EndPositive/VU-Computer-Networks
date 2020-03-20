@@ -274,6 +274,15 @@ class Client:
                 # Mark the seeders as active
                 self.requests[torrent.hash].append(seeder)
 
+                # Count how many pieces we send
+                if torrent.hash not in self.send_counter:
+                    self.send_counter[torrent.hash] = {}
+
+                if seeder not in self.send_counter[torrent.hash]:
+                    self.send_counter[torrent.hash][seeder] = 0
+
+                self.send_counter[torrent.hash][seeder] += 1
+
                 # Request a download
                 packet.type = 6
                 send(self.__socket, packet.to_bytes(), seeder)
@@ -294,15 +303,6 @@ class Client:
             packet.type = 7
             packet.data = torrent.get_piece(packet.piece_no)
             send(self.__socket, packet.to_bytes(), conn)
-
-            # Count how many pieces we send
-            if torrent.hash not in self.send_counter:
-                self.send_counter[torrent.hash] = {}
-
-            if conn not in self.send_counter[torrent.hash]:
-                self.send_counter[torrent.hash][conn] = 0
-
-            self.send_counter[torrent.hash][conn] += 1
 
             # print("Sending piece " + str(packet.piece_no) + " for torrent", torrent.id)
         except IndexError:
