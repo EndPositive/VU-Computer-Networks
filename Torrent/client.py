@@ -390,7 +390,7 @@ class Client:
             self.total_send_speed = 0
             for hash in self.send_counter:
                 self.send_speed[hash] = {}
-                self.torrent_send_speed[hash] = 0
+                self.torrent_send_speed[hash] = {}
                 for conn in self.send_counter[hash]:
                     self.send_speed[hash][conn] = self.send_counter[hash][conn]
                     self.send_counter[hash][conn] = 0
@@ -403,7 +403,7 @@ class Client:
             self.total_recv_speed = 0
             for hash in self.recv_counter:
                 self.recv_speed[hash] = {}
-                self.torrent_recv_speed[hash] = 0
+                self.torrent_recv_speed[hash] = {}
                 for conn in self.recv_counter[hash]:
                     self.recv_speed[hash][conn] = self.recv_counter[hash][conn]
                     self.recv_counter[hash][conn] = 0
