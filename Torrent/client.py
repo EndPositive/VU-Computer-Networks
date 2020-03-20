@@ -230,7 +230,7 @@ class Client:
 
                     # If there are no idle seeders, find a seeder who is not very busy
                     if len(idle_seeders) == 0:
-                        seeder = idle_seeders[randint(0, len(idle_seeders) - 1)]
+                        seeder = self.seeders[torrent.hash][randint(0, len(self.seeders[torrent.hash]) - 1)]
 
                         # If the fewest used active seeder is already used a lot
                         if self.requests[torrent.hash].count(seeder) > self.max_requests_per_seeder:
