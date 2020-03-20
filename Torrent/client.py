@@ -297,7 +297,7 @@ class Client:
 
             # Count how many pieces we send
             if torrent.hash not in self.send_counter:
-                self.send_counter[torrent.hash] = []
+                self.send_counter[torrent.hash] = {}
 
             if conn not in self.send_counter[torrent.hash]:
                 self.send_counter[torrent.hash][conn] = 0
