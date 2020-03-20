@@ -232,7 +232,7 @@ class Client:
                     if len(idle_seeders) == 0:
                         if len(self.seeders[torrent.hash]) == 0:
                             continue
-                        elif len(self.seeders[torrent.hash]) > 1:
+                        elif len(self.seeders[torrent.hash]) >= 1:
                             seeder = self.seeders[torrent.hash][randint(0, len(self.seeders[torrent.hash]) - 1)]
                         # If the fewest used active seeder is already used a lot
                         if torrent.hash in self.requests:
